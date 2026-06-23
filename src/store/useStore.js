@@ -123,6 +123,7 @@ export const useUIStore = create((set) => ({
   openUnits: {},      // { ["si_ui"]: bool }
   pdfViewer: null,    // { title, url, id } | null
   kbOpen: false,
+  modalOpen: null,    // <-- ADDED THIS!
 
   setReg: (r) => set({ activeReg: r, openSubjects: {}, openUnits: {} }),
   setBranch: (b) => set({ activeBranch: b, openSubjects: {}, openUnits: {} }),
@@ -141,4 +142,6 @@ export const useUIStore = create((set) => ({
   closePDF: () => set({ pdfViewer: null }),
 
   setKBOpen: (v) => set({ kbOpen: v }),
+  
+  setModalOpen: (id, isOpen) => set({ modalOpen: isOpen ? id : null }), // <-- ADDED THIS!
 }));
