@@ -5,17 +5,14 @@
 import { useState } from "react";
 import { useUIStore } from "../store/useStore";
 import { useResourceAdminStore } from "../store/useResourceAdminStore";
-import { useResourceAdminStore } from "../store/useResourceAdminStore";
+
 // ── UnitRow ──────────────────────────────────
 function UnitRow({ unit, unitIndex, subjectIndex, files = [] }) {
   const toggleUnit  = useUIStore((s) => s.toggleUnit);
   const openUnits   = useUIStore((s) => s.openUnits);
   const openPDF     = useUIStore((s) => s.openPDF);
   const isOpen      = !!openUnits[`${subjectIndex}_${unitIndex}`];
-const renameSubject =
-  useResourceAdminStore(
-    (s) => s.renameSubject
-  );
+
   return (
     <div className={`unit-item ${isOpen ? "open" : ""}`}>
       <div className="unit-header" onClick={() => toggleUnit(subjectIndex, unitIndex)}>
@@ -162,86 +159,112 @@ function ResourceTabs({ subject, index }) {
 // ── SubjectCard (main export) ──────────────────
 export default function SubjectCard({ subject, index }) {
   const toggleSubject = useUIStore((s) => s.toggleSubject);
-  const openSubjects  = useUIStore((s) => s.openSubjects);
-  const isOpen = !!openSubjects[index];
+  const openSubjects = useUIStore((s) => s.openSubjects);
+
   const adminMode =
-  useResourceAdminStore((s) => s.adminMode);
+    useResourceAdminStore((s) => s.adminMode);
+
+  const renameSubject =
+    useResourceAdminStore((s) => s.renameSubject);
+
+  const isOpen = !!openSubjects[index];
 
   return (
-    <div className={`subject-card ${isOpen ? "open" : ""}`} id={`sc-${index}`}>
-   <div className="subj-header" onClick={() => toggleSubject(index)}>
-  <div style={{ flex: 1 }}>
-    <div className="subj-name">{subject.name}</div>
-
-    <div className="subj-meta">
-      {subject.code} · {subject.credits > 0
-        ? `${subject.credits} credits`
-        : "Non-Credit"}
-    </div>
-
-    {adminMode && (
+    <div
+      className={`subject-card ${isOpen ? "open" : ""}`}
+      id={`sc-${index}`}
+    >
       <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginTop: 10,
-          flexWrap: "wrap",
-        }}
+        className="subj-header"
+        onClick={() => toggleSubject(index)}
       >
-        <button
-          className="btn btn-outline"
-          onClick={async (e) => {
-            e.stopPropagation();
-            const newName = prompt(
-  "New subject name:",
-  subject.name
-);
+        <div style={{ flex: 1 }}>
+          <div className="subj-name">
+            {subject.name}
+          </div>
 
-if (!newName) return;
+          <div className="subj-meta">
+            {subject.code} ·{" "}
+            {subject.credits > 0
+              ? `${subject.credits} credits`
+              : "Non-Credit"}
+          </div>
 
-const result =
-  await renameSubject(
-    subject.code,
-    newName
-  );
+          {adminMode && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                marginTop: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                className="btn btn-outline"
+                onClick={async (e) => {
+                  e.stopPropagation();
 
-if (!result.success) {
-  alert("Rename failed");
-  return;
-}
+                  const newName = prompt(
+                    "New subject name:",
+                    subject.name
+                  );
 
-alert("Subject renamed");
-          }}
-        >
-          Rename
-        </button>
+                  if (!newName) return;
 
-        <button
-          className="btn btn-outline"
-          onClick={(e) => {
-            e.stopPropagation();
-            alert("Move Subject");
-          }}
-        >
-          Move
-        </button>
+                  const result =
+                    await renameSubject(
+                      subject.code,
+                      newName
+                    );
 
-        <button
-          className="btn btn-outline"
-          onClick={(e) => {
-            e.stopPropagation();
-            alert("Delete Subject");
-          }}
-        >
-          Delete
-        </button>
+                  if (!result.success) {
+                    alert("Rename failed");
+                    return;
+                  }
+
+                  alert("Subject renamed");
+                }}
+              >
+                Rename
+              </button>
+
+              <button
+                className="btn btn-outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  alert("Move Subject");
+                }}
+              >
+                Move
+              </button>
+
+              <button
+                className="btn btn-outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  alert("Delete Subject");
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+
+        <ChevronIcon className="subj-chev" />
       </div>
-    )}
-  </div>
 
-  <ChevronIcon className="subj-chev" />
-</div>
-
+      {isOpen && (
+        <div className="resource-drawer">
+          <ResourceTabs
+            subject={subject}
+            index={index}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 // ── Shared icon ───────────────────────────────
 function ChevronIcon({ className = "subj-chev" }) {
   return (
