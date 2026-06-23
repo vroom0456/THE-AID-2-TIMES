@@ -5,11 +5,11 @@
 import { useState } from "react";
 import { useUserStore, useUIStore } from "../store/useStore";
 
-export default function Nav({ setModal }) {
+export default function Nav() {
   const user      = useUserStore((s) => s.user);
+  const setModal  = useUIStore((s) => s.setModalOpen);
   const setKBOpen = useUIStore((s) => s.setKBOpen);
   const [menuOpen, setMenuOpen] = useState(false);
-;
 
   let eggCount = 0;
   function eggClick() {
