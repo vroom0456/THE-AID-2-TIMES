@@ -35,7 +35,7 @@ export default function App() {
   const kbOpen = useUIStore((s) => s.kbOpen);
   
   // 1. Pull the instruction from the store
-  const setModalOpen = useUIStore((s) => s.setModalOpen);
+
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
