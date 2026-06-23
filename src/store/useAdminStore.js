@@ -93,6 +93,4 @@ export const useResourceAdminStore = create((set, get) => ({
       error,
     };
   },
-}));    });
-  },
-}));
+})); 
