@@ -71,10 +71,10 @@ export default function App() {
 
   const kbOpen = useUIStore((s) => s.kbOpen);
 
-  const modals = useUIStore((s) => s.modals);
+const modals = useUIStore((s) => s.modals);
 
-const AdminGate = lazy(() =>
-  import("./components/AdminGate")
+const checkAdmin = useAdminStore(
+  (s) => s.checkAdmin
 );
 
   useEffect(() => {
@@ -169,12 +169,14 @@ const AdminGate = lazy(() =>
           <Ticker />
 
           <main>
-            <Hero />
+  <Hero />
 
-            <ResourceVault />
+  <AdminPanel />
 
-            <Team />
-          </main>
+  <ResourceVault />
+
+  <Team />
+</main>
 
           <Footer />
 
