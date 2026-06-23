@@ -190,6 +190,8 @@ const checkAdmin = useAdminStore(
 
           <Dashboard />
 
+<AdminPanel />
+
 <AdminGate />
 
 {kbOpen && <QuickSearch />}
