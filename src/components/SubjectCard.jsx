@@ -166,63 +166,60 @@ export default function SubjectCard({ subject, index }) {
 
   return (
     <div className={`subject-card ${isOpen ? "open" : ""}`} id={`sc-${index}`}>
-      <div className="subj-header" onClick={() => toggleSubject(index)}>
-        {adminMode && (
-  <div
-    style={{
-      display: "flex",
-      gap: 8,
-      marginTop: 10,
-    }}
-  >
-    <button
-      className="btn btn-outline"
-      onClick={(e) => {
-        e.stopPropagation();
-        alert("Rename Subject");
-      }}
-    >
-      Rename
-    </button>
+   <div className="subj-header" onClick={() => toggleSubject(index)}>
+  <div style={{ flex: 1 }}>
+    <div className="subj-name">{subject.name}</div>
 
-    <button
-      className="btn btn-outline"
-      onClick={(e) => {
-        e.stopPropagation();
-        alert("Move Subject");
-      }}
-    >
-      Move
-    </button>
-
-    <button
-      className="btn btn-outline"
-      onClick={(e) => {
-        e.stopPropagation();
-        alert("Delete Subject");
-      }}
-    >
-      Delete
-    </button>
-  </div>
-)}
-        <div style={{ flex: 1 }}>
-          <div className="subj-name">{subject.name}</div>
-          <div className="subj-meta">
-            {subject.code} · {subject.credits > 0 ? `${subject.credits} credits` : "Non-Credit"}
-          </div>
-        </div>
-        <ChevronIcon className="subj-chev" />
-      </div>
-
-      {isOpen && (
-        <div className="resource-drawer">
-          <ResourceTabs subject={subject} index={index} />
-        </div>
-      )}
+    <div className="subj-meta">
+      {subject.code} · {subject.credits > 0
+        ? `${subject.credits} credits`
+        : "Non-Credit"}
     </div>
-  );
-}
+
+    {adminMode && (
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginTop: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          className="btn btn-outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            alert("Rename Subject");
+          }}
+        >
+          Rename
+        </button>
+
+        <button
+          className="btn btn-outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            alert("Move Subject");
+          }}
+        >
+          Move
+        </button>
+
+        <button
+          className="btn btn-outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            alert("Delete Subject");
+          }}
+        >
+          Delete
+        </button>
+      </div>
+    )}
+  </div>
+
+  <ChevronIcon className="subj-chev" />
+</div>
 
 // ── Shared icon ───────────────────────────────
 function ChevronIcon({ className = "subj-chev" }) {
