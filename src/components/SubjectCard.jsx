@@ -5,14 +5,17 @@
 import { useState } from "react";
 import { useUIStore } from "../store/useStore";
 import { useResourceAdminStore } from "../store/useResourceAdminStore";
-
+import { useResourceAdminStore } from "../store/useResourceAdminStore";
 // ── UnitRow ──────────────────────────────────
 function UnitRow({ unit, unitIndex, subjectIndex, files = [] }) {
   const toggleUnit  = useUIStore((s) => s.toggleUnit);
   const openUnits   = useUIStore((s) => s.openUnits);
   const openPDF     = useUIStore((s) => s.openPDF);
   const isOpen      = !!openUnits[`${subjectIndex}_${unitIndex}`];
-
+const renameSubject =
+  useResourceAdminStore(
+    (s) => s.renameSubject
+  );
   return (
     <div className={`unit-item ${isOpen ? "open" : ""}`}>
       <div className="unit-header" onClick={() => toggleUnit(subjectIndex, unitIndex)}>
@@ -187,9 +190,27 @@ export default function SubjectCard({ subject, index }) {
       >
         <button
           className="btn btn-outline"
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation();
-            alert("Rename Subject");
+            const newName = prompt(
+  "New subject name:",
+  subject.name
+);
+
+if (!newName) return;
+
+const result =
+  await renameSubject(
+    subject.code,
+    newName
+  );
+
+if (!result.success) {
+  alert("Rename failed");
+  return;
+}
+
+alert("Subject renamed");
           }}
         >
           Rename
