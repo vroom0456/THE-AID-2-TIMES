@@ -1,66 +1,59 @@
 import { useAdminStore } from "../store/useAdminStore";
 
 export default function AdminPanel() {
-  const adminSession = useAdminStore((s) => s.adminSession);
+  const adminSession = useAdminStore(
+    (s) => s.adminSession
+  );
 
   if (!adminSession) return null;
 
   return (
     <section
       style={{
-        margin: "24px 0",
-        padding: "20px",
         border: "1px solid var(--g3)",
+        padding: 20,
+        marginBottom: 30,
         borderRadius: 8,
-        background: "rgba(255,255,255,.02)",
       }}
     >
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
+          color: "#f0c040",
+          fontWeight: 700,
+          marginBottom: 10,
         }}
       >
-        <div>
-          <div
-            style={{
-              color: "#f0c040",
-              fontWeight: 700,
-              marginBottom: 4,
-            }}
-          >
-            ADMIN PANEL
-          </div>
-
-          <div style={{ fontSize: ".85rem", color: "var(--g4)" }}>
-            Logged in as: {adminSession}
-          </div>
-        </div>
+        ⚡ ADMIN PANEL
       </div>
+
+      <p>
+        Logged in as:
+        <br />
+        <strong>{adminSession}</strong>
+      </p>
 
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-          gap: 12,
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+          marginTop: 15,
         }}
       >
         <button className="btn btn-outline">
-          📤 Upload Resource
+          Resources
         </button>
 
         <button className="btn btn-outline">
-          📝 Manage Resources
+          Users
         </button>
 
         <button className="btn btn-outline">
-          📬 Contributions
+          Uploads
         </button>
 
         <button className="btn btn-outline">
-          👥 Admins
+          Analytics
         </button>
       </div>
     </section>
