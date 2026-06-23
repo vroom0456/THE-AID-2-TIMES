@@ -1,7 +1,3 @@
-
-// ─────────────────────────────────────────────
-// FILE: src/components/Nav.jsx
-// ─────────────────────────────────────────────
 import { useState } from "react";
 import { useUserStore, useUIStore } from "../store/useStore";
 
@@ -76,4 +72,3 @@ export default function Nav() {
     </>
   );
 }
-// forcing vercel to update
