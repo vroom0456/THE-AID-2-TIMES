@@ -1,106 +1,98 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 
-export const useAdminStore = create((set) => ({
-  adminSession: null,
+export const useResourceAdminStore = create((set, get) => ({
+  adminMode: false,
+  resources: [],
   loading: false,
 
-  login: async (email, password) => {
-    try {
-      set({ loading: true });
+  setAdminMode: (v) =>
+    set({ adminMode: v }),
 
-      const { error } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+  loadResources: async () => {
+    set({ loading: true });
 
-      if (error) {
-        set({ loading: false });
-
-        return {
-          success: false,
-          message: error.message,
-        };
-      }
-
-      const { data: adminRow, error: adminError } =
-        await supabase
-          .from("admins")
-          .select("*")
-          .eq("email", email)
-          .single();
-
-      if (adminError || !adminRow) {
-        await supabase.auth.signOut();
-
-        set({
-          adminSession: null,
-          loading: false,
-        });
-
-        return {
-          success: false,
-          message: "Not authorized.",
-        };
-      }
-
-      set({
-        adminSession: adminRow.email,
-        loading: false,
-      });
-
-      return {
-        success: true,
-      };
-    } catch (err) {
-      set({ loading: false });
-
-      return {
-        success: false,
-        message: err.message,
-      };
-    }
-  },
-
-  logout: async () => {
-    await supabase.auth.signOut();
-
-    set({
-      adminSession: null,
-    });
-  },
-
-  checkAdmin: async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.user?.email) {
-      set({
-        adminSession: null,
-      });
-
-      return;
-    }
-
-    const { data: adminRow } =
+    const { data, error } =
       await supabase
-        .from("admins")
+        .from("resources")
         .select("*")
-        .eq("email", session.user.email)
-        .single();
+        .order("created_at", {
+          ascending: false,
+        });
 
-    if (!adminRow) {
+    if (!error) {
       set({
-        adminSession: null,
+        resources: data || [],
       });
-
-      return;
     }
 
-    set({
-      adminSession: adminRow.email,
-    });
+    set({ loading: false });
+  },
+
+  createResource: async (
+    payload
+  ) => {
+    const { error } =
+      await supabase
+        .from("resources")
+        .insert([payload]);
+
+    return {
+      success: !error,
+      error,
+    };
+  },
+
+  deleteResource: async (id) => {
+    const { error } =
+      await supabase
+        .from("resources")
+        .delete()
+        .eq("id", id);
+
+    return {
+      success: !error,
+      error,
+    };
+  },
+
+  renameSubject: async (
+    oldCode,
+    newName
+  ) => {
+    const { error } =
+      await supabase
+        .from("resources")
+        .update({
+          subject_name: newName,
+        })
+        .eq("subject_code", oldCode);
+
+    return {
+      success: !error,
+      error,
+    };
+  },
+
+  moveSubject: async (
+    subjectCode,
+    newBranch,
+    newSemester
+  ) => {
+    const { error } =
+      await supabase
+        .from("resources")
+        .update({
+          branch: newBranch,
+          semester: newSemester,
+        })
+        .eq("subject_code", subjectCode);
+
+    return {
+      success: !error,
+      error,
+    };
+  },
+}));    });
   },
 }));
