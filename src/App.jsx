@@ -66,7 +66,7 @@ export default function App() {
       {user && (
         <>
           {/* 2. Hand the instruction baton to the Nav bar */}
-          <Nav setModal={setModalOpen} />
+          <Nav />
           <Ticker />
           <main>
             <Hero />
