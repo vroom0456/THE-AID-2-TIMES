@@ -13,8 +13,8 @@ const PDFViewer       = lazy(() => import("./components/PDFViewer"));
 const CGPACalculator  = lazy(() => import("./components/CGPACalculator"));
 const Dashboard       = lazy(() => import("./components/Dashboard"));
 const QuickSearch     = lazy(() => import("./components/QuickSearch"));
-const AdminGate       = lazy(() => import("./components/AdminGate")
-);
+const AdminGate       = lazy(() => import("./components/AdminGate"));
+const AdminPanel      = lazy(() => import("./components/AdminPanel"));
 function Loader() {
   return (
     <div
