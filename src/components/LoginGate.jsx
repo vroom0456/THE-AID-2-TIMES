@@ -101,3 +101,4 @@ export function LoginGate() {
     </div>
   );
 }
+export default LoginGate;
