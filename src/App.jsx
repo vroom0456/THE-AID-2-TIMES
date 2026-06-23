@@ -73,12 +73,13 @@ export default function App() {
 
   const modals = useUIStore((s) => s.modals);
 
-  const checkAdmin =
-  useAdminStore((s) => s.checkAdmin);
+const AdminGate = lazy(() =>
+  import("./components/AdminGate")
+);
 
   useEffect(() => {
   checkAdmin();
-}, []);
+}, [checkAdmin]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
