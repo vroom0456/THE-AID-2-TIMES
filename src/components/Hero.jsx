@@ -1,7 +1,7 @@
 import { useUIStore } from "../store/useStore";
 
 export function Hero() {
-  const setModal = useUIStore((s) => s.setModal);
+  const setModal = useUIStore((s) => s.setModalOpen);
   const setKROpen = useUIStore((s) => s.setKROpen);
 
   return (
