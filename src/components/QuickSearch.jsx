@@ -86,3 +86,4 @@ export function QuickSearch() {
     </div>
   );
 }
+export default QuickSearch;
