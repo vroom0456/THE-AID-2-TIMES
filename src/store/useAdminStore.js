@@ -1,96 +1,67 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 
-export const useResourceAdminStore = create((set, get) => ({
-  adminMode: false,
-  resources: [],
+export const useAdminStore = create((set) => ({
+  adminSession: null,
   loading: false,
 
-  setAdminMode: (v) =>
-    set({ adminMode: v }),
+  login: async (email, password) => {
+    try {
+      set({ loading: true });
 
-  loadResources: async () => {
-    set({ loading: true });
-
-    const { data, error } =
-      await supabase
-        .from("resources")
-        .select("*")
-        .order("created_at", {
-          ascending: false,
+      const { error } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
         });
 
-    if (!error) {
+      if (error) {
+        set({ loading: false });
+
+        return {
+          success: false,
+          message: error.message,
+        };
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       set({
-        resources: data || [],
+        adminSession: user?.email || null,
+        loading: false,
       });
+
+      return {
+        success: true,
+      };
+    } catch (err) {
+      set({ loading: false });
+
+      return {
+        success: false,
+        message: err.message,
+      };
     }
-
-    set({ loading: false });
   },
 
-  createResource: async (
-    payload
-  ) => {
-    const { error } =
-      await supabase
-        .from("resources")
-        .insert([payload]);
+  logout: async () => {
+    await supabase.auth.signOut();
 
-    return {
-      success: !error,
-      error,
-    };
+    set({
+      adminSession: null,
+    });
   },
 
-  deleteResource: async (id) => {
-    const { error } =
-      await supabase
-        .from("resources")
-        .delete()
-        .eq("id", id);
+  checkAdmin: async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    return {
-      success: !error,
-      error,
-    };
+    set({
+      adminSession:
+        session?.user?.email || null,
+    });
   },
-
-  renameSubject: async (
-    oldCode,
-    newName
-  ) => {
-    const { error } =
-      await supabase
-        .from("resources")
-        .update({
-          subject_name: newName,
-        })
-        .eq("subject_code", oldCode);
-
-    return {
-      success: !error,
-      error,
-    };
-  },
-
-  moveSubject: async (
-    subjectCode,
-    newBranch,
-    newSemester
-  ) => {
-    const { error } =
-      await supabase
-        .from("resources")
-        .update({
-          branch: newBranch,
-          semester: newSemester,
-        })
-        .eq("subject_code", subjectCode);
-
-    return {
-      success: !error,
-      error,
-    };
-  },
-})); 
+}));
