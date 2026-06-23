@@ -1,5 +1,6 @@
 // src/store/useAdminStore.js
-import { create } from 'zustand';
+import { create } from "zustand";
+import { supabase } from "../lib/supabase";
 
 export const useAdminStore = create((set) => ({
   adminSession: localStorage.getItem('aid2_admin_session')?.split(':')[0] || null,
