@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { useCIEStore } from "../store/useStore";
+import { SUBJECTS } from "../data/curriculum";
 
 // ─────────────────────────────────────────────
 // CIETracker.jsx  (save as separate file if preferred)
