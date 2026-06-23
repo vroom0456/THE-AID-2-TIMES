@@ -131,3 +131,4 @@ function MarksRow({ label, max, value, onChange }) {
     </div>
   );
 }
+export default CIETracker;
