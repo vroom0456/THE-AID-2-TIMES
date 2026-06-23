@@ -1,14 +1,12 @@
 import { useUIStore } from "../store/useStore";
 
-export default function Hero() {
+export function Hero() {
   const setModalOpen = useUIStore((s) => s.setModalOpen);
   const setKBOpen = useUIStore((s) => s.setKBOpen);
 
   return (
     <section id="hero" style={{ borderTop: "none" }}>
-      <div className="hero-bg">
-        THE AID 2 TIMES
-      </div>
+      <div className="hero-bg">THE AID 2 TIMES</div>
 
       <p className="hero-eye">
         CBIT Hyderabad · Student Resource Hub
@@ -28,15 +26,12 @@ export default function Hero() {
         <strong>BUILT BY AIDS DEPT — 3RD YEAR</strong>
         <br />
         Branch-wise. Semester-wise. Unit-wise.
-        Resources, CIE Tracker, CGPA Forecaster —
+        Resources, CIE tracker, CGPA forecaster —
         all in one place.
       </p>
 
       <div className="hero-acts">
-        <a
-          href="#resources"
-          className="btn btn-primary"
-        >
+        <a href="#resources" className="btn btn-primary">
           Browse Resources →
         </a>
 
@@ -57,6 +52,7 @@ export default function Hero() {
         <button
           className="btn btn-outline"
           onClick={() => setKBOpen(true)}
+          title="Ctrl+K"
         >
           ⌘ Quick Search
         </button>
@@ -64,3 +60,5 @@ export default function Hero() {
     </section>
   );
 }
+
+export default Hero;
