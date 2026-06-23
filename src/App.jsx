@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { useUserStore, useUIStore } from "./store/useStore";
+import { useAdminStore } from "./store/useAdminStore";
 
 const LoginGate       = lazy(() => import("./components/LoginGate"));
 const Nav             = lazy(() => import("./components/Nav"));
@@ -12,7 +13,8 @@ const PDFViewer       = lazy(() => import("./components/PDFViewer"));
 const CGPACalculator  = lazy(() => import("./components/CGPACalculator"));
 const Dashboard       = lazy(() => import("./components/Dashboard"));
 const QuickSearch     = lazy(() => import("./components/QuickSearch"));
-
+const AdminGate.      = lazy(() => import("./components/AdminGate")
+);
 function Loader() {
   return (
     <div
@@ -70,6 +72,13 @@ export default function App() {
   const kbOpen = useUIStore((s) => s.kbOpen);
 
   const modals = useUIStore((s) => s.modals);
+
+  const checkAdmin =
+  useAdminStore((s) => s.checkAdmin);
+
+  useEffect(() => {
+  checkAdmin();
+}, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -174,7 +183,9 @@ export default function App() {
 
           <Dashboard />
 
-          {kbOpen && <QuickSearch />}
+<AdminGate />
+
+{kbOpen && <QuickSearch />}
         </>
       )}
     </Suspense>
