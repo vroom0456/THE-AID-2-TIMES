@@ -1,0 +1,296 @@
+// ─────────────────────────────────────────────
+// FILE: src/components/ui/Modal.jsx
+// Reusable modal wrapper used by Dashboard,
+// CGPACalculator, ProfileEdit, Contribute
+// ─────────────────────────────────────────────
+export default function Modal({ title, sub, children, onClose, wide, headerExtra }) {
+  return (
+    <div className="modal-overlay open" onClick={(e) => { if (e.target.className.includes("modal-overlay")) onClose(); }}>
+      <div className="modal-box" style={{ maxWidth: wide ? 800 : 540 }}>
+        <button className="modal-close" onClick={onClose}>
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        {headerExtra
+          ? <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom: sub ? 5 : 18 }}>
+              <div><div className="modal-title">{title}</div>{sub && <div className="modal-sub">{sub}</div>}</div>
+              <div style={{ marginRight: 32 }}>{headerExtra}</div>
+            </div>
+          : <><div className="modal-title">{title}</div>{sub && <div className="modal-sub">{sub}</div>}</>
+        }
+        {children}
+      </div>
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────
+// FILE: src/components/Nav.jsx
+// ─────────────────────────────────────────────
+import { useState } from "react";
+import { useUserStore, useUIStore } from "../store/useStore";
+
+export function Nav() {
+  const user      = useUserStore((s) => s.user);
+  const setModal  = useUIStore((s) => s.setModalOpen);
+  const setKBOpen = useUIStore((s) => s.setKBOpen);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  let eggCount = 0;
+  function eggClick() {
+    eggCount++;
+    if (eggCount >= 5) document.getElementById("egg")?.classList.add("on");
+    setTimeout(() => { eggCount = 0; }, 1200);
+  }
+
+  return (
+    <>
+      <nav id="navbar">
+        <div className="nav-logo" onClick={eggClick}>
+          THE AID <span>2</span> TIMES
+        </div>
+
+        <ul className="nav-links">
+          <li><a href="#resources">Resources</a></li>
+          <li><a href="#team">Team</a></li>
+          <li><button onClick={() => setModal("calc", true)}>CGPA Calculator</button></li>
+        </ul>
+
+        <div className="nav-acts">
+          <button className="profile-btn hide-mob" onClick={() => setModal("dash", true)}>
+            <div className="profile-btn-avatar">
+              {user?.pfp ? <img src={user.pfp} alt="" /> : user?.name?.charAt(0).toUpperCase()}
+            </div>
+            <span>{user?.name?.split(" ")[0] || "Profile"}</span>
+          </button>
+
+          <a href="https://whatsapp.com/channel/0029VavYpcu8vd1WvvTrMm3T"
+            target="_blank" rel="noreferrer"
+            className="btn btn-outline hide-mob"
+            style={{ padding: "7px 14px", fontSize: ".75rem" }}>
+            Join Channel
+          </a>
+
+          <button className="hamburger" onClick={() => setMenuOpen(true)}>
+            <span/><span/><span/>
+          </button>
+        </div>
+      </nav>
+
+      {/* Full-screen mobile menu */}
+      {menuOpen && (
+        <div className="full-menu open">
+          <button className="modal-close" style={{ position:"absolute",top:22,right:32 }}
+            onClick={() => setMenuOpen(false)}>
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          {[
+            { label:"Resources",      href:"#resources" },
+            { label:"Team",           href:"#team" },
+          ].map(({ label, href }) => (
+            <a key={label} href={href} onClick={() => setMenuOpen(false)}>{label}</a>
+          ))}
+          <button onClick={() => { setModal("calc",true); setMenuOpen(false); }}>CGPA Calculator</button>
+          <button onClick={() => { setModal("dash",true); setMenuOpen(false); }}>My Dashboard</button>
+          <a href="https://whatsapp.com/channel/0029VavYpcu8vd1WvvTrMm3T" target="_blank" rel="noreferrer"
+            style={{ color:"var(--white)" }} onClick={() => setMenuOpen(false)}>
+            Join Channel
+          </a>
+        </div>
+      )}
+    </>
+  );
+}
+
+
+// ─────────────────────────────────────────────
+// FILE: src/components/LoginGate.jsx
+// ─────────────────────────────────────────────
+import { useState } from "react";
+import { useUserStore } from "../store/useStore";
+
+export function LoginGate() {
+  const login = useUserStore((s) => s.login);
+  const [form, setForm] = useState({ name:"", roll:"", branch:"AIDS", section:"", sem:"5" });
+  const [sgpas, setSgpas] = useState({});
+  const [pfp, setPfp]     = useState(null);
+  const [pfpPreview, setPfpPreview] = useState(null);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const semNum = parseInt(form.sem);
+
+  function handlePfp(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { setPfp(ev.target.result); setPfpPreview(ev.target.result); };
+    reader.readAsDataURL(file);
+  }
+
+  function handleSubmit() {
+    if (!form.name.trim() || !form.roll.trim()) { alert("Name and roll number required."); return; }
+    const sgpaArr = Array.from({ length: semNum - 1 }, (_, i) => parseFloat(sgpas[i + 1]) || 0);
+    login({ ...form, sem: semNum, sgpas: sgpaArr, pfp });
+  }
+
+  return (
+    <div id="loginGate">
+      <div className="login-box">
+        <div className="login-logo">THE AID <span>2</span> TIMES</div>
+        <div className="login-sub">Create your student profile — data saves to your device</div>
+
+        {/* Profile picture */}
+        <div className="pfp-wrap">
+          <div className="pfp-preview">
+            {pfpPreview ? <img src={pfpPreview} alt="pfp" /> : "?"}
+          </div>
+          <div>
+            <label className="pfp-btn" style={{ cursor:"pointer" }}>
+              📷 Upload Photo
+              <input type="file" accept="image/*" style={{ display:"none" }} onChange={handlePfp} />
+            </label>
+            <p style={{ fontSize:".7rem", color:"var(--g4)", marginTop:5 }}>Optional</p>
+          </div>
+        </div>
+
+        {[
+          { label:"Full Name",    key:"name",    ph:"e.g. Varun Teja" },
+          { label:"Roll Number",  key:"roll",    ph:"e.g. 160122771001" },
+          { label:"Section",      key:"section", ph:"e.g. A" },
+        ].map(({ label, key, ph }) => (
+          <div className="form-row" key={key}>
+            <label className="form-label">{label}</label>
+            <input className="form-input" placeholder={ph} value={form[key]}
+              onChange={(e) => set(key, e.target.value)} />
+          </div>
+        ))}
+
+        <div className="form-row">
+          <label className="form-label">Branch</label>
+          <select className="form-select" value={form.branch} onChange={(e) => set("branch", e.target.value)}>
+            {[["AIDS","AI & Data Science"],["CSE","Computer Science"],["IT","Information Technology"],["ECE","Electronics"],["AIML","AI & ML"]].map(([v,l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-row">
+          <label className="form-label">Current Semester</label>
+          <select className="form-select" value={form.sem} onChange={(e) => set("sem", e.target.value)}>
+            {["I","II","III","IV","V","VI","VII","VIII"].map((s,i) => (
+              <option key={s} value={i+1}>Sem {s}</option>
+            ))}
+          </select>
+        </div>
+
+        {semNum > 1 && (
+          <div className="form-row">
+            <label className="form-label">Previous Semester SGPAs</label>
+            <div className="login-cgpa-grid">
+              {Array.from({ length: semNum - 1 }, (_, i) => i + 1).map((n) => (
+                <div className="login-cgpa-item" key={n}>
+                  <label>Sem {n}</label>
+                  <input type="number" placeholder="—" step="0.01" min="0" max="10"
+                    value={sgpas[n] || ""}
+                    onChange={(e) => setSgpas((s) => ({ ...s, [n]: e.target.value }))} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button className="btn btn-primary" style={{ width:"100%", marginTop:10 }} onClick={handleSubmit}>
+          Enter Portal →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────
+// FILE: src/components/QuickSearch.jsx  (Ctrl+K)
+// ─────────────────────────────────────────────
+import { useState, useEffect, useRef } from "react";
+import { SUBJECTS } from "../data/curriculum";
+import { useUIStore } from "../store/useStore";
+
+export function QuickSearch() {
+  const setKBOpen = useUIStore((s) => s.setKBOpen);
+  const setReg    = useUIStore((s) => s.setReg);
+  const setBranch = useUIStore((s) => s.setBranch);
+  const setSem    = useUIStore((s) => s.setSem);
+
+  const [query, setQuery] = useState("");
+  const [sel, setSel]     = useState(0);
+  const inputRef          = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const results = query.trim().length < 1 ? [] : (() => {
+    const q = query.toLowerCase();
+    const out = [];
+    for (const r in SUBJECTS)
+      for (const b in SUBJECTS[r])
+        for (const s in SUBJECTS[r][b])
+          SUBJECTS[r][b][s].forEach((sub) => {
+            if (sub.name.toLowerCase().includes(q) || sub.code.toLowerCase().includes(q))
+              out.push({ sub, r, b, s });
+          });
+    return out.slice(0, 8);
+  })();
+
+  function select(item) {
+    setReg(item.r); setBranch(item.b); setSem(item.s);
+    setKBOpen(false);
+    // scroll after render
+    setTimeout(() => {
+      document.getElementById("resources")?.scrollIntoView({ behavior: "smooth" });
+    }, 300);
+  }
+
+  function onKey(e) {
+    if (e.key === "ArrowDown") setSel((s) => Math.min(s + 1, results.length - 1));
+    if (e.key === "ArrowUp")   setSel((s) => Math.max(s - 1, 0));
+    if (e.key === "Enter" && results[sel]) select(results[sel]);
+  }
+
+  return (
+    <div id="kbOverlay" className="show" onClick={(e) => { if (e.target.id === "kbOverlay") setKBOpen(false); }}>
+      <div className="kb-box">
+        <div className="kb-input-wrap">
+          <span className="kb-search-icon">🔍</span>
+          <input
+            ref={inputRef}
+            className="kb-input"
+            placeholder="Type subject name or code…"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setSel(0); }}
+            onKeyDown={onKey}
+          />
+          <span style={{ fontFamily:"var(--fm)", fontSize:".65rem", color:"var(--g4)" }}>ESC</span>
+        </div>
+
+        <div className="kb-results">
+          {results.length === 0 && query.trim().length > 0 && (
+            <div style={{ padding:"16px 20px", fontSize:".82rem", color:"var(--g4)" }}>No subjects found.</div>
+          )}
+          {results.map((it, i) => (
+            <div
+              key={i}
+              className={`kb-result-item ${i === sel ? "selected" : ""}`}
+              onClick={() => select(it)}
+              onMouseEnter={() => setSel(i)}
+            >
+              <div>
+                <div className="kb-result-name">{it.sub.name}</div>
+                <div className="kb-result-meta">{it.r} · {it.b} · Sem {it.s} · {it.sub.code}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="kb-hint">↑↓ navigate · Enter to jump · Esc to close</div>
+      </div>
+    </div>
+  );
+}

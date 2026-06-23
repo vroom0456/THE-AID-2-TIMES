@@ -1,0 +1,200 @@
+import { useState } from "react";
+import { SUBJECTS, SEMS, SEM_CREDITS } from "../data/curriculum";
+import { useUIStore, useUserStore } from "../store/useStore";
+import { calcSGPA, forecastCGPA } from "../utils/cgpaCalc";
+import Modal from "./ui/Modal";
+
+export default function CGPACalculator() {
+  const isOpen     = useUIStore((s) => s.modals?.calc);
+  const setModal   = useUIStore((s) => s.setModalOpen);
+  const activeReg  = useUIStore((s) => s.activeReg);
+  const activeBranch = useUIStore((s) => s.activeBranch);
+  const activeSem  = useUIStore((s) => s.activeSem);
+  const user       = useUserStore((s) => s.user);
+
+  const [tab, setTab]     = useState("sgpa");
+  const [grades, setGrades] = useState({});       // { index: gradePoint }
+  const [cgpaInputs, setCgpaInputs] = useState(   // pre-fill from user profile
+    () => Object.fromEntries((user?.sgpas || []).map((v, i) => [i + 1, v || ""]))
+  );
+  const [target, setTarget] = useState("");
+  const [result, setResult] = useState(null);
+
+  const subjects = (SUBJECTS[activeReg]?.[activeBranch]?.[activeSem] || [])
+    .filter((s) => s.credits > 0);
+
+  // ── SGPA calc ──
+  function handleCalcSGPA() {
+    const entries = subjects.map((s, i) => ({
+      credits: s.credits,
+      gradePoint: parseFloat(grades[i] ?? 10),
+    }));
+    const sgpa = calcSGPA(entries);
+    setResult({ type: "sgpa", sgpa });
+  }
+
+  // ── CGPA forecast ──
+  function handleForecastCGPA() {
+    const t = parseFloat(target);
+    if (isNaN(t) || t < 0 || t > 10) { alert("Enter a valid target CGPA (0–10)."); return; }
+    const sgpas = Array.from({ length: 8 }, (_, i) => parseFloat(cgpaInputs[i + 1]) || 0);
+    const data = forecastCGPA(sgpas, t);
+    setResult({ type: "cgpa", data, target: t });
+  }
+
+  if (!isOpen) return null;
+
+  return (
+    <Modal title="Performance Analyzer" sub="SGPA calculator & CGPA forecaster"
+      onClose={() => setModal("calc", false)}>
+
+      {/* Tabs */}
+      <div className="calc-tabs">
+        <button className={`calc-tab ${tab === "sgpa" ? "active" : ""}`} onClick={() => { setTab("sgpa"); setResult(null); }}>
+          Semester SGPA
+        </button>
+        <button className={`calc-tab ${tab === "cgpa" ? "active" : ""}`} onClick={() => { setTab("cgpa"); setResult(null); }}>
+          CGPA Forecaster
+        </button>
+      </div>
+
+      {/* SGPA Tab */}
+      {tab === "sgpa" && (
+        <div>
+          <p style={{ fontSize: ".82rem", color: "var(--g5)", marginBottom: 14 }}>
+            Grades for <span style={{ color: "var(--white)" }}>{activeReg} {activeBranch} Sem {activeSem}</span>
+          </p>
+          {subjects.length === 0
+            ? <p style={{ color: "var(--g5)", fontSize: ".82rem" }}>No subjects for this selection.</p>
+            : subjects.map((s, i) => (
+              <div key={i} className="marks-row" style={{ borderBottom: "1px solid var(--g2)", padding: "9px 0", gap: 10 }}>
+                <div style={{ flex: 1, fontSize: ".82rem", color: "var(--white)" }}>
+                  {s.name}
+                  <span style={{ display: "block", fontFamily: "var(--fm)", fontSize: ".65rem", color: "var(--g5)" }}>
+                    {s.code} · {s.credits} CR
+                  </span>
+                </div>
+                <select
+                  className="form-select"
+                  style={{ width: 105, padding: "7px 28px 7px 8px", fontSize: ".8rem" }}
+                  value={grades[i] ?? 10}
+                  onChange={(e) => setGrades((g) => ({ ...g, [i]: parseInt(e.target.value) }))}
+                >
+                  {[["S",10],["A",9],["B",8],["C",7],["D",6],["E",5],["F",0]].map(([l,v]) => (
+                    <option key={v} value={v}>{l} ({v})</option>
+                  ))}
+                </select>
+              </div>
+            ))
+          }
+          <button className="btn btn-primary" style={{ width: "100%", marginTop: 12 }} onClick={handleCalcSGPA}>
+            Calculate SGPA
+          </button>
+        </div>
+      )}
+
+      {/* CGPA Tab */}
+      {tab === "cgpa" && (
+        <div>
+          <p style={{ fontSize: ".82rem", color: "var(--g5)", marginBottom: 14 }}>
+            Enter SGPAs — auto-filled from your profile. Edit to try scenarios.
+          </p>
+          {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
+            <div key={n} className="marks-row" style={{ borderBottom: "1px solid var(--g2)", padding: "8px 0", gap: 8 }}>
+              <div style={{ fontSize: ".82rem", color: "var(--white)", flex: 1 }}>
+                Sem {SEMS[n - 1]}
+                <span style={{ fontFamily: "var(--fm)", fontSize: ".64rem", color: "var(--g5)", marginLeft: 8 }}>
+                  {SEM_CREDITS[n]} CR
+                </span>
+              </div>
+              <input
+                type="number"
+                className="marks-input"
+                style={{ width: 76 }}
+                placeholder="—"
+                step="0.01" min="0" max="10"
+                value={cgpaInputs[n] ?? ""}
+                onChange={(e) => setCgpaInputs((c) => ({ ...c, [n]: e.target.value }))}
+              />
+            </div>
+          ))}
+          <div className="form-row" style={{ marginTop: 14 }}>
+            <label className="form-label">Target CGPA</label>
+            <input type="number" className="form-input" placeholder="e.g. 9.0"
+              step="0.01" min="0" max="10" value={target}
+              onChange={(e) => setTarget(e.target.value)} />
+          </div>
+          <button className="btn btn-gold" style={{ width: "100%", marginTop: 10 }} onClick={handleForecastCGPA}>
+            Forecast Requirement
+          </button>
+        </div>
+      )}
+
+      {/* Result Box */}
+      {result && <ResultBox result={result} />}
+    </Modal>
+  );
+}
+
+// ── Result display ─────────────────────────────
+function ResultBox({ result }) {
+  if (result.type === "sgpa") {
+    return (
+      <div className="forecast-result show" style={{ marginTop: 16 }}>
+        <div className="fr-label">Semester SGPA</div>
+        <div className="fr-big">{result.sgpa.toFixed(2)}</div>
+        <div className="fr-msg">Based on your selected grades.</div>
+      </div>
+    );
+  }
+
+  const { data, target } = result;
+  const color = !data.feasible ? "var(--red)" : data.alreadySecured ? "var(--green)" : "var(--gold)";
+  const bigText = !data.feasible
+    ? "Not Feasible"
+    : data.alreadySecured
+    ? "Secured! 🎉"
+    : data.reqAvg.toFixed(2);
+
+  const msg = !data.feasible
+    ? `Target CGPA ${target} is mathematically impossible.\nMax achievable: ${data.maxAchievable.toFixed(2)}`
+    : data.alreadySecured
+    ? `You've already secured CGPA ≥ ${target} regardless of future scores!`
+    : `Avg SGPA needed in remaining ${data.remainingCredits} credits (Sems ${data.lastSem + 1}–8).`;
+
+  return (
+    <div className="forecast-result show" style={{ marginTop: 16 }}>
+      <div className="fr-label">Required Average SGPA</div>
+      <div className="fr-big" style={{ color }}>{bigText}</div>
+      <div className="fr-msg" style={{ whiteSpace: "pre-line" }}>{msg}</div>
+
+      {/* ASAP section */}
+      {data.feasible && !data.alreadySecured && data.asapSem && (
+        <div className="asap-section">
+          <div className="asap-title">⚡ Achieve Target ASAP</div>
+          <div className="asap-row">
+            <span>
+              Score avg <strong style={{ color: "var(--green)" }}>{data.asapReqAvg.toFixed(2)}</strong>{" "}
+              across Sems {data.lastSem + 1}–{data.asapSem} →{" "}
+              reach CGPA {target} by <strong>Sem {SEMS[data.asapSem - 1]}</strong>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Full breakdown */}
+      {data.feasible && !data.alreadySecured && data.semBreakdown.length > 0 && (
+        <div className="sem-breakdown">
+          <div className="sbd-title">📅 Semester-wise Breakdown</div>
+          {data.semBreakdown.map((row) => (
+            <div key={row.sem} className="sbd-row">
+              <strong>Sem {SEMS[row.sem - 1]}</strong>
+              <span style={{ color: "var(--g5)", fontSize: ".75rem" }}>({row.credits} CR)</span>
+              <span className="val">{row.needed > 10 ? "10+" : row.needed.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
