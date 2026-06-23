@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────
 import { useState } from "react";
 import { useUIStore } from "../store/useStore";
+import { useResourceAdminStore } from "../store/useResourceAdminStore";
 
 // ── UnitRow ──────────────────────────────────
 function UnitRow({ unit, unitIndex, subjectIndex, files = [] }) {
@@ -155,16 +156,56 @@ function ResourceTabs({ subject, index }) {
     </>
   );
 }
-
 // ── SubjectCard (main export) ──────────────────
 export default function SubjectCard({ subject, index }) {
   const toggleSubject = useUIStore((s) => s.toggleSubject);
   const openSubjects  = useUIStore((s) => s.openSubjects);
   const isOpen = !!openSubjects[index];
+  const adminMode =
+  useResourceAdminStore((s) => s.adminMode);
 
   return (
     <div className={`subject-card ${isOpen ? "open" : ""}`} id={`sc-${index}`}>
       <div className="subj-header" onClick={() => toggleSubject(index)}>
+        {adminMode && (
+  <div
+    style={{
+      display: "flex",
+      gap: 8,
+      marginTop: 10,
+    }}
+  >
+    <button
+      className="btn btn-outline"
+      onClick={(e) => {
+        e.stopPropagation();
+        alert("Rename Subject");
+      }}
+    >
+      Rename
+    </button>
+
+    <button
+      className="btn btn-outline"
+      onClick={(e) => {
+        e.stopPropagation();
+        alert("Move Subject");
+      }}
+    >
+      Move
+    </button>
+
+    <button
+      className="btn btn-outline"
+      onClick={(e) => {
+        e.stopPropagation();
+        alert("Delete Subject");
+      }}
+    >
+      Delete
+    </button>
+  </div>
+)}
         <div style={{ flex: 1 }}>
           <div className="subj-name">{subject.name}</div>
           <div className="subj-meta">
