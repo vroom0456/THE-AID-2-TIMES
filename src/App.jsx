@@ -1,10 +1,6 @@
-// ─────────────────────────────────────────────
-// THE AID 2 TIMES — App Shell
-// ─────────────────────────────────────────────
 import { lazy, Suspense, useEffect } from "react";
 import { useUserStore, useUIStore } from "./store/useStore";
 
-// Lazy load heavy components (reduces initial bundle)
 const LoginGate       = lazy(() => import("./components/LoginGate"));
 const Nav             = lazy(() => import("./components/Nav"));
 const Ticker          = lazy(() => import("./components/Ticker"));
@@ -34,22 +30,23 @@ function Loader() {
 }
 
 export default function App() {
-  const user    = useUserStore((s) => s.user);
-  const { pdfViewer, kbOpen } = useUIStore();
+  const user = useUserStore((s) => s.user);
+  const pdfViewer = useUIStore((s) => s.pdfViewer);
+  const kbOpen = useUIStore((s) => s.kbOpen);
+  
+  // 1. Pull the instruction from the store
+  const setModalOpen = useUIStore((s) => s.setModalOpen);
 
-  // Deep link support: ?subject=22CSC15N
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code   = params.get("subject");
     if (code) {
-      // Dispatched to ResourceVault via UIStore after mount
       setTimeout(() => {
         useUIStore.getState().setDeepLink?.(code, params.get("tab"));
       }, 800);
     }
   }, []);
 
-  // Keyboard shortcut Ctrl+K
   useEffect(() => {
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -68,7 +65,8 @@ export default function App() {
 
       {user && (
         <>
-          <Nav />
+          {/* 2. Hand the instruction baton to the Nav bar */}
+          <Nav setModal={setModalOpen} />
           <Ticker />
           <main>
             <Hero />
@@ -77,7 +75,6 @@ export default function App() {
           </main>
           <Footer />
 
-          {/* Modals — always mounted, shown via store flags */}
           <PDFViewer />
           <CGPACalculator />
           <Dashboard />
