@@ -166,6 +166,10 @@ const checkAdmin = useAdminStore(
         <>
           <Nav />
 
+<AdminPanel />
+
+
+
           <Ticker />
 
           <main>
