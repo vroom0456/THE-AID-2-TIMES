@@ -6,8 +6,19 @@
     <title>THE AID 2 TIMES</title>
   </head>
   <body>
+    
+    <script>
+      const oldError = console.error;
+      console.error = function(...args) {
+        document.body.innerHTML = '<div style="padding: 20px; background: #222; color: #ff5555; font-family: monospace; font-size: 14px; position: fixed; inset: 0; z-index: 99999; overflow: auto;"><h3>React Error:</h3><p>' + args.join(' ') + '</p></div>';
+        oldError.apply(console, args);
+      };
+      window.onerror = function(msg, url, line) {
+        document.body.innerHTML = '<div style="padding: 20px; background: #222; color: #ff5555; font-family: monospace; font-size: 14px; position: fixed; inset: 0; z-index: 99999; overflow: auto;"><h3>Code Error:</h3><p>' + msg + '</p><p>Line: ' + line + '</p></div>';
+      };
+    </script>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-
