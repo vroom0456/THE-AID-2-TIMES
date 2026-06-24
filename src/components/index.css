@@ -376,3 +376,6 @@ footer{border-top:1px solid var(--g2);padding:28px 40px;display:flex;align-items
 #egg.on{display:flex;animation:fin .5s;}
 .glitch{color:#0f0;font-family:var(--fm);animation:glitch .15s infinite;}
 @keyframes glitch{0%{transform:translate(0)}25%{transform:translate(-2px,2px)}75%{transform:translate(2px,-2px)}100%{transform:translate(0)}}
+
+
+
