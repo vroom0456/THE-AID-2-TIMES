@@ -26,8 +26,11 @@ export async function createProfile(payload) {
 export async function updateProfile(userId, payload) {
   const { error } = await supabase
     .from("profiles")
-    .update(payload)
-    .eq("id", userId);
+    .upsert({
+      id: userId,
+      ...payload,
+    });
+    
   if (error) throw error;
 }
 
