@@ -32,3 +32,5 @@ export async function deleteAvatar(userId) {
     .from("avatars")
     .remove([`${userId}/avatar.jpeg`]);
 }
+
+
