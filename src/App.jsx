@@ -3,7 +3,8 @@ import { useUserStore, useUIStore } from "./store/useStore";
 import { useAdminStore } from "./store/useAdminStore";
 
 const LoginGate      = lazy(() => import("./components/LoginGate"));
-const Nav            = lazy(() => import("./components/Nav"));
+// Explicitly added .jsx to force Vite to resolve the file correctly
+const Nav            = lazy(() => import("./components/Nav.jsx"));
 const Ticker         = lazy(() => import("./components/Ticker"));
 const Hero           = lazy(() => import("./components/Hero"));
 const ResourceVault  = lazy(() => import("./components/ResourceVault"));
@@ -163,3 +164,4 @@ export default function App() {
     </Suspense>
   );
 }
+
