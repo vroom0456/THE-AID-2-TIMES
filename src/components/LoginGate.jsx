@@ -1,22 +1,39 @@
 import { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import toast, { Toaster } from "react-hot-toast";
 
 import { useUserStore } from "../store/useStore";
-import { signUpUser, signInUser, getCurrentUser } from "../services/authService";
+import { supabase } from "../lib/supabase";
+import { signUpUser, signInUser, getCurrentUser, sendPasswordReset, updateUserPassword } from "../services/authService";
 import { fetchStudentProfile, isProfileComplete, updateProfile } from "../services/profileService";
 import { uploadAvatar, deleteAvatar } from "../services/storageService";
+import ImageCropper from "./profile/ImageCropper";
 import { authSchema, profileSchema, buildSgpaArray } from "../utils/validators";
 import { friendlyError } from "../utils/errorHelpers";
 import {
-  BRANCH_CODES, BRANCH_LABELS, SEMESTERS, MAX_AVATAR_BYTES,
+  BRANCH_CODES, BRANCH_LABELS, SEMESTERS, SECTIONS, MAX_AVATAR_BYTES,
 } from "../utils/constants";
 
 function FieldError({ error }) {
   if (!error) return null;
   return <p className="error" role="alert">{error.message}</p>;
 }
+
+const forgotSchema = z.object({
+  email: z.string().email("Invalid email address."),
+});
+
+const resetSchema = z
+  .object({
+    password: z.string().min(6, "Password must be at least 6 characters."),
+    confirm: z.string(),
+  })
+  .refine((d) => d.password === d.confirm, {
+    message: "Passwords do not match.",
+    path: ["confirm"],
+  });
 
 function AvatarPicker({ preview, onPick, onRemove }) {
   return (
@@ -44,17 +61,31 @@ export default function LoginGate() {
   const loginStore = useUserStore((s) => s.login);
 
   const [mode, setMode] = useState("login");
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("type=recovery")) {
+      setMode("reset");
+    }
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setMode("reset");
+    });
+    return () => sub?.subscription?.unsubscribe();
+  }, []);
   const [pendingUserId, setPendingUserId] = useState(null);
   const [pendingEmail, setPendingEmail]   = useState(null);
 
   const [pfpFile, setPfpFile]           = useState(null);
   const [pfpPreview, setPfpPreview]     = useState(null);
   const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [cropSrc, setCropSrc]           = useState(null);
 
   const authForm = useForm({ resolver: zodResolver(authSchema) });
+  const forgotForm = useForm({ resolver: zodResolver(forgotSchema) });
+  const resetForm = useForm({ resolver: zodResolver(resetSchema) });
   const profileForm = useForm({
     resolver: zodResolver(profileSchema),
-    defaultValues: { branch: "AIDS", semester: 5, section: "", roll_no: "" },
+    defaultValues: { branch: "AIDS", semester: 5, section: "1", roll_no: "" },
   });
 
   const currentSem = profileForm.watch("semester");
@@ -68,13 +99,20 @@ export default function LoginGate() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_AVATAR_BYTES) { toast.error("Image must be under 5 MB."); return; }
-    setPfpFile(file);
-    setPhotoRemoved(false);
     const reader = new FileReader();
-    reader.onload = (ev) => setPfpPreview(ev.target.result);
+    reader.onload = (ev) => setCropSrc(ev.target.result);
     reader.readAsDataURL(file);
     e.target.value = "";
   }, []);
+
+  const handleCropConfirm = useCallback((croppedFile) => {
+    setPfpFile(croppedFile);
+    setPhotoRemoved(false);
+    setPfpPreview(URL.createObjectURL(croppedFile));
+    setCropSrc(null);
+  }, []);
+
+  const handleCropCancel = useCallback(() => setCropSrc(null), []);
 
   const removePfp = useCallback(() => {
     setPfpFile(null); setPfpPreview(null); setPhotoRemoved(true);
@@ -103,6 +141,30 @@ export default function LoginGate() {
       }
     } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
   }, [mode, loginStore]);
+
+  const onForgotSubmit = useCallback(async (data) => {
+    const toastId = toast.loading("Sending reset link…");
+    try {
+      const { error } = await sendPasswordReset(data.email.trim());
+      if (error) throw error;
+      toast.success("Check your email for a reset link.", { id: toastId });
+      forgotForm.reset();
+      setMode("login");
+    } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
+  }, [forgotForm]);
+
+  const onResetSubmit = useCallback(async (data) => {
+    const toastId = toast.loading("Updating password…");
+    try {
+      const { error } = await updateUserPassword(data.password);
+      if (error) throw error;
+      toast.success("Password updated. Please sign in.", { id: toastId });
+      window.history.replaceState(null, "", window.location.pathname);
+      await supabase.auth.signOut();
+      resetForm.reset();
+      setMode("login");
+    } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
+  }, [resetForm]);
 
   const onProfileSubmit = useCallback(async (data) => {
     const currentUser = await getCurrentUser();
@@ -133,6 +195,9 @@ export default function LoginGate() {
   return (
     <div id="loginGate" role="main" aria-label="Sign in">
       <Toaster position="top-center" />
+      {cropSrc && (
+        <ImageCropper imageSrc={cropSrc} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
+      )}
       <div className="login-box">
         {mode === "profile" && (
           <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} noValidate>
@@ -145,7 +210,9 @@ export default function LoginGate() {
             </div>
             <div className="form-row">
               <label className="form-label" htmlFor="section">Section</label>
-              <input id="section" className="form-input" placeholder="e.g. A" maxLength={1} {...profileForm.register("section")} />
+              <select id="section" className="form-select" {...profileForm.register("section")}>
+                {SECTIONS.map((s) => <option key={s} value={String(s)}>Section {s}</option>)}
+              </select>
               <FieldError error={profileForm.formState.errors.section} />
             </div>
             <div className="form-row">
@@ -178,7 +245,46 @@ export default function LoginGate() {
             </button>
           </form>
         )}
-        {mode !== "profile" && (
+        {mode === "forgot" && (
+          <form onSubmit={forgotForm.handleSubmit(onForgotSubmit)} noValidate>
+            <h2 className="login-heading">Reset Password</h2>
+            <p style={{ fontSize: ".82rem", color: "var(--g5)", marginBottom: 14 }}>
+              Enter your account email and we'll send you a link to reset your password.
+            </p>
+            <div className="form-row">
+              <label className="form-label" htmlFor="forgot_email">Email</label>
+              <input id="forgot_email" className="form-input" type="email" placeholder="you@college.edu" autoComplete="email" {...forgotForm.register("email")} />
+              <FieldError error={forgotForm.formState.errors.email} />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 8 }} disabled={forgotForm.formState.isSubmitting}>
+              {forgotForm.formState.isSubmitting ? "Sending…" : "Send Reset Link"}
+            </button>
+            <div style={{ textAlign: "center", marginTop: 14, fontSize: ".82rem" }}>
+              <button type="button" className="link-btn" onClick={() => setMode("login")}>Back to Sign In</button>
+            </div>
+          </form>
+        )}
+
+        {mode === "reset" && (
+          <form onSubmit={resetForm.handleSubmit(onResetSubmit)} noValidate>
+            <h2 className="login-heading">Set New Password</h2>
+            <div className="form-row">
+              <label className="form-label" htmlFor="new_password">New Password</label>
+              <input id="new_password" type="password" className="form-input" placeholder="••••••" autoComplete="new-password" {...resetForm.register("password")} />
+              <FieldError error={resetForm.formState.errors.password} />
+            </div>
+            <div className="form-row">
+              <label className="form-label" htmlFor="confirm_password">Confirm Password</label>
+              <input id="confirm_password" type="password" className="form-input" placeholder="••••••" autoComplete="new-password" {...resetForm.register("confirm")} />
+              <FieldError error={resetForm.formState.errors.confirm} />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 8 }} disabled={resetForm.formState.isSubmitting}>
+              {resetForm.formState.isSubmitting ? "Saving…" : "Update Password"}
+            </button>
+          </form>
+        )}
+
+        {mode !== "profile" && mode !== "forgot" && mode !== "reset" && (
           <form onSubmit={authForm.handleSubmit(onAuthSubmit)} noValidate>
             <h2 className="login-heading">{mode === "signup" ? "Create Account" : "Sign In"}</h2>
             {mode === "signup" && (
@@ -208,6 +314,13 @@ export default function LoginGate() {
             <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 8 }} disabled={authForm.formState.isSubmitting}>
               {authForm.formState.isSubmitting ? "Please wait…" : mode === "signup" ? "Create Account" : "Sign In"}
             </button>
+            {mode === "login" && (
+              <div style={{ textAlign: "center", marginTop: 10 }}>
+                <button type="button" className="link-btn" style={{ fontSize: ".78rem" }} onClick={() => setMode("forgot")}>
+                  Forgot Password?
+                </button>
+              </div>
+            )}
             <div style={{ textAlign: "center", marginTop: 14, fontSize: ".82rem" }}>
               {mode === "login" ? (
                 <>No account? <button type="button" className="link-btn" onClick={() => switchMode("signup")}>Sign up</button></>
@@ -221,3 +334,5 @@ export default function LoginGate() {
     </div>
   );
 }
+
+
