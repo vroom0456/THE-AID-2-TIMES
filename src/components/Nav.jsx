@@ -9,6 +9,8 @@ export default function Nav() {
   const setKBOpen = useUIStore((s) => s.setKBOpen);
   const isAdmin = useAdminStore((s) => s.adminSession);
   const adminLogout = useAdminStore((s) => s.logout);
+  
+  // Updated sign out logic
   const signOut = signOutUser;
 
   const [menuOpen, setMenuOpen] = useState(false);
