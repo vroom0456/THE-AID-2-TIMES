@@ -5,33 +5,18 @@ import SubjectCard from "./SubjectCard";
 
 export default function ResourceVault() {
   const {
-    activeReg,
-    activeBranch,
-    activeSem,
-    activeFilter,
-    setReg,
-    setBranch,
-    setSem,
-    setFilter,
+    activeReg, activeBranch, activeSem, activeFilter,
+    setReg, setBranch, setSem, setFilter,
   } = useUIStore();
 
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     try {
-      const profile = JSON.parse(
-        localStorage.getItem("studentProfile")
-      );
-
+      const profile = JSON.parse(localStorage.getItem("studentProfile"));
       if (!profile) return;
-
-      if (profile.branch) {
-        setBranch(profile.branch);
-      }
-
-      if (profile.semester) {
-        setSem(profile.semester);
-      }
+      if (profile.branch)   setBranch(profile.branch);
+      if (profile.semester) setSem(profile.semester);
     } catch (err) {
       console.error(err);
     }
@@ -39,99 +24,55 @@ export default function ResourceVault() {
 
   const subjects = useMemo(() => {
     const q = search.trim().toLowerCase();
-
     if (q.length > 1) {
       const results = [];
-
       for (const r in SUBJECTS)
         for (const b in SUBJECTS[r])
           for (const s in SUBJECTS[r][b])
             SUBJECTS[r][b][s].forEach((sub) => {
-              if (
-                sub.name.toLowerCase().includes(q) ||
-                sub.code.toLowerCase().includes(q)
-              ) {
-                results.push({
-                  ...sub,
-                  _meta: `${r} · ${b} · Sem ${s}`,
-                });
-              }
+              if (sub.name.toLowerCase().includes(q) || sub.code.toLowerCase().includes(q))
+                results.push({ ...sub, _meta: `${r} · ${b} · Sem ${s}` });
             });
-
       return results;
     }
-
-    return (
-      SUBJECTS[activeReg]?.[activeBranch]?.[activeSem] || []
-    );
-  }, [
-    search,
-    activeReg,
-    activeBranch,
-    activeSem,
-  ]);
+    return SUBJECTS[activeReg]?.[activeBranch]?.[activeSem] || [];
+  }, [search, activeReg, activeBranch, activeSem]);
 
   const filtered = useMemo(() => {
-    if (activeFilter === "pyp") {
-      return subjects.filter(
-        (s) =>
-          s.resources?.pyp?.mid?.length ||
-          s.resources?.pyp?.endsem?.length
-      );
-    }
-
-    if (activeFilter === "lab") {
-      return subjects.filter(
-        (s) => s.resources?.lab?.files?.length
-      );
-    }
-
+    if (activeFilter === "pyp")
+      return subjects.filter((s) => s.resources?.pyp?.mid?.length || s.resources?.pyp?.endsem?.length);
+    if (activeFilter === "lab")
+      return subjects.filter((s) => s.resources?.lab?.files?.length);
     return subjects;
   }, [subjects, activeFilter]);
 
   return (
     <section id="resources">
-      <div className="sec-label">
-        01 · Academic Resources
-      </div>
+      <div className="sec-label">01 · Academic Resources</div>
 
       <div className="res-controls">
         <div>
-          <h2 className="sec-title">
-            Study Vault.
-          </h2>
-
-          <p
-            className="sec-sub"
-            style={{ marginBottom: 0 }}
-          >
+          <h2 className="sec-title">Study Vault.</h2>
+          <p className="sec-sub" style={{ marginBottom: 0 }}>
             Select regulation, branch & sem — or search globally.
           </p>
         </div>
-
         <input
           type="text"
           className="search-input"
           style={{ maxWidth: 340 }}
           placeholder="Search subject or code… (Ctrl+K)"
           value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
       <div className="reg-row">
-        <span className="reg-label">
-          REG:
-        </span>
-
+        <span className="reg-label">REG:</span>
         {["R22A", "R21A"].map((r) => (
           <button
             key={r}
-            className={`reg-btn ${
-              activeReg === r ? "active" : ""
-            }`}
+            className={`reg-btn ${activeReg === r ? "active" : ""}`}
             onClick={() => setReg(r)}
           >
             {r}
@@ -143,14 +84,8 @@ export default function ResourceVault() {
         {BRANCHES.map((b) => (
           <button
             key={b.code}
-            className={`branch-btn ${
-              activeBranch === b.code
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              setBranch(b.code)
-            }
+            className={`branch-btn ${activeBranch === b.code ? "active" : ""}`}
+            onClick={() => setBranch(b.code)}
           >
             {b.code}
           </button>
@@ -161,9 +96,7 @@ export default function ResourceVault() {
         {SEMS.map((s) => (
           <button
             key={s}
-            className={`sem-tab ${
-              activeSem === s ? "active" : ""
-            }`}
+            className={`sem-tab ${activeSem === s ? "active" : ""}`}
             onClick={() => setSem(s)}
           >
             Sem {s}
@@ -173,30 +106,15 @@ export default function ResourceVault() {
 
       <div className="filter-chips">
         {[
-          { key: "all", label: "All" },
-          {
-            key: "theory",
-            label: "Theory Notes",
-          },
-          {
-            key: "pyp",
-            label: "Prev Year Papers",
-          },
-          {
-            key: "lab",
-            label: "Lab Manuals",
-          },
+          { key: "all",    label: "All" },
+          { key: "theory", label: "Theory Notes" },
+          { key: "pyp",    label: "Prev Year Papers" },
+          { key: "lab",    label: "Lab Manuals" },
         ].map((f) => (
           <button
             key={f.key}
-            className={`chip ${
-              activeFilter === f.key
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              setFilter(f.key)
-            }
+            className={`chip ${activeFilter === f.key ? "active" : ""}`}
+            onClick={() => setFilter(f.key)}
           >
             {f.label}
           </button>
@@ -204,197 +122,11 @@ export default function ResourceVault() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState
-          activeFilter={activeFilter}
-        />
-      ) : (
-        <div className="subject-list">
-          {filtered.map(
-            (subject, i) => (
-              <SubjectCard
-                key={
-                  subject.code + i
-                }
-                subject={subject}
-                index={i}
-              />
-            )
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function EmptyState({
-  activeFilter,
-}) {
-  const setModalOpen =
-    useUIStore(
-      (s) => s.setModalOpen
-    );
-
-  return (
-    <div
-      style={{
-        textAlign: "center",
-        padding: "52px 20px",
-        color: "var(--g4)",
-        border:
-          "1px dashed var(--g3)",
-        borderRadius: 5,
-        fontSize: ".88rem",
-      }}
-    >
-      {activeFilter !== "all" ? (
-        <>
-          No {activeFilter} resources uploaded yet for this selection.
-          <br />
-
-          <button
-            className="btn btn-outline"
-            style={{
-              marginTop: 12,
-              padding: "8px 16px",
-              fontSize: ".78rem",
-            }}
-            onClick={() =>
-              setModalOpen(
-                "contribute",
-                true
-              )
-            }
-          >
-            Contribute Resources +
-          </button>
-        </>
-      ) : (
-        "No subjects found for this selection."
-      )}
-    </div>
-  );
-}          <h2 className="sec-title">
-            Study Vault.
-          </h2>
-
-          <p
-            className="sec-sub"
-            style={{ marginBottom: 0 }}
-          >
-            Select regulation, branch & sem —
-            or search globally.
-          </p>
-        </div>
-
-        <input
-          type="text"
-          className="search-input"
-          style={{ maxWidth: 340 }}
-          placeholder="Search subject or code… (Ctrl+K)"
-          value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
-        />
-      </div>
-
-      <div className="reg-row">
-        <span className="reg-label">
-          REG:
-        </span>
-
-        {["R22A", "R21A"].map((r) => (
-          <button
-            key={r}
-            className={`reg-btn ${
-              activeReg === r ? "active" : ""
-            }`}
-            onClick={() => setReg(r)}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
-
-      <div className="branch-grid">
-        {BRANCHES.map((b) => (
-          <button
-            key={b.code}
-            className={`branch-btn ${
-              activeBranch === b.code
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              setBranch(b.code)
-            }
-          >
-            {b.code}
-          </button>
-        ))}
-      </div>
-
-      <div className="sem-tabs">
-        {SEMS.map((s) => (
-          <button
-            key={s}
-            className={`sem-tab ${
-              activeSem === s ? "active" : ""
-            }`}
-            onClick={() => setSem(s)}
-          >
-            Sem {s}
-          </button>
-        ))}
-      </div>
-
-      <div className="filter-chips">
-        {[
-          {
-            key: "all",
-            label: "All",
-          },
-          {
-            key: "theory",
-            label: "Theory Notes",
-          },
-          {
-            key: "pyp",
-            label: "Prev Year Papers",
-          },
-          {
-            key: "lab",
-            label: "Lab Manuals",
-          },
-        ].map((f) => (
-          <button
-            key={f.key}
-            className={`chip ${
-              activeFilter === f.key
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              setFilter(f.key)
-            }
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyState
-          activeFilter={activeFilter}
-        />
+        <EmptyState activeFilter={activeFilter} />
       ) : (
         <div className="subject-list">
           {filtered.map((subject, i) => (
-            <SubjectCard
-              key={subject.code + i}
-              subject={subject}
-              index={i}
-            />
+            <SubjectCard key={subject.code + i} subject={subject} index={i} />
           ))}
         </div>
       )}
@@ -403,40 +135,21 @@ function EmptyState({
 }
 
 function EmptyState({ activeFilter }) {
-  const setModalOpen = useUIStore(
-    (s) => s.setModalOpen
-  );
+  const setModalOpen = useUIStore((s) => s.setModalOpen);
 
   return (
-    <div
-      style={{
-        textAlign: "center",
-        padding: "52px 20px",
-        color: "var(--g4)",
-        border: "1px dashed var(--g3)",
-        borderRadius: 5,
-        fontSize: ".88rem",
-      }}
-    >
+    <div style={{
+      textAlign: "center", padding: "52px 20px", color: "var(--g4)",
+      border: "1px dashed var(--g3)", borderRadius: 5, fontSize: ".88rem",
+    }}>
       {activeFilter !== "all" ? (
         <>
-          No {activeFilter} resources uploaded
-          yet for this selection.
+          No {activeFilter} resources uploaded yet for this selection.
           <br />
-
           <button
             className="btn btn-outline"
-            style={{
-              marginTop: 12,
-              padding: "8px 16px",
-              fontSize: ".78rem",
-            }}
-            onClick={() =>
-              setModalOpen(
-                "contribute",
-                true
-              )
-            }
+            style={{ marginTop: 12, padding: "8px 16px", fontSize: ".78rem" }}
+            onClick={() => setModalOpen("contribute", true)}
           >
             Contribute Resources +
           </button>
