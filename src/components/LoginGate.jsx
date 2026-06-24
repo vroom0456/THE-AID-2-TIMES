@@ -130,7 +130,6 @@ export default function LoginGate() {
           id: authData.user.id,
           email: data.email,
           full_name: data.fullName,
-          role: "user",
           created_at: new Date().toISOString(),
         });
 
@@ -180,7 +179,6 @@ export default function LoginGate() {
           sem: profile.semester,
           section: profile.section,
           pfp: profile.profile_picture_url,
-          role: profile.role,
           sgpas: profile.sgpas || [],
         });
         toast.success("Welcome back!", { id: toastId });
@@ -272,7 +270,6 @@ export default function LoginGate() {
         sem: data.semester,
         section: data.section,
         pfp: finalPfpUrl,
-        role: "user",
         sgpas: sgpaArr,
       });
 
@@ -533,3 +530,4 @@ export default function LoginGate() {
     </div>
   );
 }
+
