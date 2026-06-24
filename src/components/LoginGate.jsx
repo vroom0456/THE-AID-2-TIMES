@@ -6,7 +6,7 @@ import toast, { Toaster } from "react-hot-toast";
 
 import { useUserStore } from "../store/useStore";
 import { supabase } from "../lib/supabase";
-import { signUpUser, signInUser, getCurrentUser, sendPasswordReset, updateUserPassword } from "../services/authService";
+import { signUpUser, signInUser, sendPasswordReset, updateUserPassword } from "../services/authService";
 import { fetchStudentProfile, isProfileComplete, updateProfile } from "../services/profileService";
 import { uploadAvatar, deleteAvatar } from "../services/storageService";
 import ImageCropper from "./profile/ImageCropper";
@@ -60,14 +60,11 @@ function AvatarPicker({ preview, onPick, onRemove }) {
 export default function LoginGate() {
   const loginStore = useUserStore((s) => s.login);
 
-  // ← default is now "signup" so new visitors see Sign Up first
   const [mode, setMode] = useState("signup");
 
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setMode("reset");
-    }
+    if (hash.includes("type=recovery")) setMode("reset");
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") setMode("reset");
     });
@@ -76,15 +73,16 @@ export default function LoginGate() {
 
   const [pendingUserId, setPendingUserId] = useState(null);
   const [pendingEmail, setPendingEmail]   = useState(null);
+  const [pendingName, setPendingName]     = useState(null);
 
   const [pfpFile, setPfpFile]           = useState(null);
   const [pfpPreview, setPfpPreview]     = useState(null);
   const [photoRemoved, setPhotoRemoved] = useState(false);
   const [cropSrc, setCropSrc]           = useState(null);
 
-  const authForm = useForm({ resolver: zodResolver(authSchema) });
-  const forgotForm = useForm({ resolver: zodResolver(forgotSchema) });
-  const resetForm = useForm({ resolver: zodResolver(resetSchema) });
+  const authForm    = useForm({ resolver: zodResolver(authSchema) });
+  const forgotForm  = useForm({ resolver: zodResolver(forgotSchema) });
+  const resetForm   = useForm({ resolver: zodResolver(resetSchema) });
   const profileForm = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: { branch: "AIDS", semester: 5, section: "1", roll_no: "" },
@@ -124,23 +122,34 @@ export default function LoginGate() {
     const toastId = toast.loading("Processing…");
     try {
       if (mode === "signup") {
-        // After signup → go to profile page to complete details
-        const { user } = await signUpUser({ email: data.email, password: data.password, fullName: data.fullName.trim() });
-        setPendingUserId(user.id); setPendingEmail(user.email); setMode("profile");
+        const { user } = await signUpUser({
+          email: data.email,
+          password: data.password,
+          fullName: data.fullName.trim(),
+        });
+        // Store everything we need for profile step — don't rely on session
+        setPendingUserId(user.id);
+        setPendingEmail(user.email || data.email);
+        setPendingName(data.fullName.trim());
+        setMode("profile");
         toast.success("Account created! Complete your profile.", { id: toastId });
       } else {
-        // After login → if profile already complete, go straight to home
         const { user } = await signInUser({ email: data.email, password: data.password });
         const profile = await fetchStudentProfile(user.id);
         if (!isProfileComplete(profile)) {
-          // Edge case: signed up before but never finished profile
-          setPendingUserId(user.id); setPendingEmail(user.email); setMode("profile");
-          toast.dismiss(toastId); return;
+          setPendingUserId(user.id);
+          setPendingEmail(user.email);
+          setPendingName(profile?.full_name || "");
+          setMode("profile");
+          toast.dismiss(toastId);
+          return;
         }
         loginStore({
-          id: user.id, name: profile.full_name, email: user.email, roll: profile.roll_no,
-          branch: profile.branch, semester: profile.semester, sem: profile.semester,
-          section: profile.section, pfp: profile.profile_picture_url, sgpas: profile.sgpas || [],
+          id: user.id, name: profile.full_name, email: user.email,
+          roll: profile.roll_no, branch: profile.branch,
+          semester: profile.semester, sem: profile.semester,
+          section: profile.section, pfp: profile.profile_picture_url,
+          sgpas: profile.sgpas || [],
         });
         toast.success("Welcome back!", { id: toastId });
       }
@@ -171,32 +180,51 @@ export default function LoginGate() {
     } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
   }, [resetForm]);
 
+  // FIX: no longer calls getCurrentUser() — uses pendingUserId/pendingEmail/pendingName
+  // stored at signup time, so this works even when Supabase session isn't active yet
   const onProfileSubmit = useCallback(async (data) => {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || !pendingUserId) {
-      toast.error("Session expired. Please log in again."); setMode("login"); setPendingUserId(null); return;
+    if (!pendingUserId) {
+      toast.error("Session expired. Please sign up again.");
+      setMode("signup");
+      return;
     }
     const toastId = toast.loading("Saving profile…");
     try {
-      const existing = await fetchStudentProfile(pendingUserId);
-      let finalPfpUrl = photoRemoved ? null : (existing?.profile_picture_url || null);
-      if (pfpFile) { const { url } = await uploadAvatar(pendingUserId, pfpFile); finalPfpUrl = url; }
-      else if (photoRemoved && existing?.profile_picture_url) { deleteAvatar(pendingUserId); }
-      const sgpaArr = buildSgpaArray(data.sgpas, Number(data.semester));
-      const fullName = currentUser.user_metadata?.full_name || existing?.full_name || data.fullName || "";
+      let finalPfpUrl = null;
+      if (pfpFile) {
+        const { url } = await uploadAvatar(pendingUserId, pfpFile);
+        finalPfpUrl = url;
+      }
+      const sgpaArr = buildSgpaArray(Number(data.semester), data.sgpas);
+      const fullName = pendingName || "";
+
       await updateProfile(pendingUserId, {
-        full_name: fullName, roll_no: data.roll_no, branch: data.branch,
-        semester: Number(data.semester), section: data.section, profile_picture_url: finalPfpUrl, sgpas: sgpaArr,
+        full_name: fullName,
+        roll_no: data.roll_no,
+        branch: data.branch,
+        semester: Number(data.semester),
+        section: data.section,
+        profile_picture_url: finalPfpUrl,
+        sgpas: sgpaArr,
       });
-      // Profile saved → log user in and go directly to home
+
       loginStore({
-        id: pendingUserId, name: fullName, email: pendingEmail || currentUser.email,
-        roll: data.roll_no, branch: data.branch, semester: Number(data.semester), sem: Number(data.semester),
-        section: data.section, pfp: finalPfpUrl, sgpas: sgpaArr,
+        id: pendingUserId,
+        name: fullName,
+        email: pendingEmail,
+        roll: data.roll_no,
+        branch: data.branch,
+        semester: Number(data.semester),
+        sem: Number(data.semester),
+        section: data.section,
+        pfp: finalPfpUrl,
+        sgpas: sgpaArr,
       });
       toast.success("Profile saved! Welcome 🎉", { id: toastId });
-    } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
-  }, [pendingUserId, pendingEmail, pfpFile, photoRemoved, loginStore]);
+    } catch (err) {
+      toast.error(friendlyError(err), { id: toastId });
+    }
+  }, [pendingUserId, pendingEmail, pendingName, pfpFile, loginStore]);
 
   return (
     <div id="loginGate" role="main" aria-label="Sign in">
@@ -208,7 +236,7 @@ export default function LoginGate() {
         <div className="login-logo">THE AID <span>2</span> TIMES</div>
         <div className="login-sub">CBIT's student resource portal</div>
 
-        {/* ── PROFILE SETUP (only shown after fresh signup) ── */}
+        {/* ── PROFILE SETUP ── */}
         {mode === "profile" && (
           <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} noValidate>
             <h2 className="login-heading">Complete Your Profile</h2>
@@ -239,7 +267,7 @@ export default function LoginGate() {
             </div>
             {Number(currentSem) > 1 && (
               <div className="form-row">
-                <label className="form-label">Semester-wise SGPAs</label>
+                <label className="form-label">Previous SGPAs <span style={{ color: "var(--g4)", fontWeight: 400 }}>(optional)</span></label>
                 <div className="login-cgpa-grid">
                   {Array.from({ length: Number(currentSem) - 1 }, (_, i) => i + 1).map((n) => (
                     <div className="login-cgpa-item" key={n}>
@@ -261,7 +289,7 @@ export default function LoginGate() {
           <form onSubmit={forgotForm.handleSubmit(onForgotSubmit)} noValidate>
             <h2 className="login-heading">Reset Password</h2>
             <p style={{ fontSize: ".82rem", color: "var(--g5)", marginBottom: 14 }}>
-              Enter your account email and we'll send you a link to reset your password.
+              Enter your account email and we'll send you a reset link.
             </p>
             <div className="form-row">
               <label className="form-label" htmlFor="forgot_email">Email</label>
@@ -301,7 +329,6 @@ export default function LoginGate() {
         {mode !== "profile" && mode !== "forgot" && mode !== "reset" && (
           <form onSubmit={authForm.handleSubmit(onAuthSubmit)} noValidate>
             <h2 className="login-heading">{mode === "signup" ? "Create Account" : "Sign In"}</h2>
-
             {mode === "signup" && (
               <div className="form-row">
                 <label className="form-label" htmlFor="fullName">Full Name</label>
@@ -326,11 +353,9 @@ export default function LoginGate() {
                 <FieldError error={authForm.formState.errors.confirm} />
               </div>
             )}
-
             <button type="submit" className="btn btn-gold" style={{ width: "100%", marginTop: 8 }} disabled={authForm.formState.isSubmitting}>
               {authForm.formState.isSubmitting ? "Please wait…" : mode === "signup" ? "Create Account →" : "Sign In →"}
             </button>
-
             {mode === "login" && (
               <div style={{ textAlign: "center", marginTop: 10 }}>
                 <button type="button" className="link-btn" style={{ fontSize: ".78rem" }} onClick={() => setMode("forgot")}>
@@ -338,8 +363,6 @@ export default function LoginGate() {
                 </button>
               </div>
             )}
-
-            {/* ← Signup shows "Already have an account? Sign in" / Login shows "No account? Sign up" */}
             <div style={{ textAlign: "center", marginTop: 14, fontSize: ".82rem", color: "var(--g5)" }}>
               {mode === "signup" ? (
                 <>Already have an account?{" "}
