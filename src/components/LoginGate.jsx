@@ -225,12 +225,7 @@ export default function LoginGate() {
             </div>
           ))}
 
-          <div className="form-row">
-            <label className="form-label">Branch *</label>
-            <select className="form-select" value={profileForm.branch} onChange={(e) => setP("branch", e.target.value)}>
-              {BRANCHES.map((b) => <option key={b} value={b}>{BRANCH_LABELS[b]}</option>)}
-            </select>
-          </div>
+        
 
           <div className="form-row">
             <label className="form-label">Current Semester *</label>
