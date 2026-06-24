@@ -1,4 +1,3 @@
-
 // ─────────────────────────────────────────────
 // FILE: src/components/QuickSearch.jsx  (Ctrl+K)
 // ─────────────────────────────────────────────
@@ -87,3 +86,5 @@ export function QuickSearch() {
   );
 }
 export default QuickSearch;
+
+
