@@ -147,3 +147,5 @@ export const TEAM = [
   { name: "Sai Sankeerth Reddy",  role: "Moderator", dept: "MECH, 3rd Year" },
   { name: "Laasya",               role: "Moderator", dept: "AIDS, 3rd Year" },
 ];
+
+
