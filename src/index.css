@@ -376,3 +376,96 @@ footer{border-top:1px solid var(--g2);padding:28px 40px;display:flex;align-items
 #egg.on{display:flex;animation:fin .5s;}
 .glitch{color:#0f0;font-family:var(--fm);animation:glitch .15s infinite;}
 @keyframes glitch{0%{transform:translate(0)}25%{transform:translate(-2px,2px)}75%{transform:translate(2px,-2px)}100%{transform:translate(0)}}
+
+/* ── Hero greeting ───────────────────────────────────── */
+.hero-greeting {
+  font-family: var(--fm);
+  font-size: .9rem;
+  letter-spacing: .08em;
+  color: var(--gold);
+  margin-bottom: 8px;
+  text-transform: none;
+}
+
+/* ── Form error ──────────────────────────────────────── */
+.form-error {
+  color: var(--red);
+  font-size: .78rem;
+  margin-top: 4px;
+  padding: 8px 12px;
+  background: rgba(255,60,60,.08);
+  border: 1px solid rgba(255,60,60,.2);
+  border-radius: 4px;
+}
+
+/* ── Admin nav badge ─────────────────────────────────── */
+.admin-nav-badge {
+  font-family: var(--fm);
+  font-size: .62rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  padding: 4px 10px;
+  border-radius: 4px;
+  animation: glow 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+@keyframes glow {
+  0%,100% { box-shadow: 0 0 4px rgba(240,192,64,.3); }
+  50%      { box-shadow: 0 0 10px rgba(240,192,64,.6); }
+}
+
+/* ── Admin control bar (sticky, below nav) ───────────── */
+.admin-control-bar {
+  position: sticky;
+  top: 60px;
+  z-index: 4000;
+  background: rgba(10,10,10,.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--gold);
+  padding: 8px 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+@media(max-width:768px) { .admin-control-bar { padding: 8px 16px; top: 55px; } }
+
+/* ── Active nav link underline ───────────────────────── */
+.nav-links a.active { color: var(--white) !important; }
+.nav-links a.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 0; right: 0;
+  height: 1px;
+  background: var(--gold);
+}
+
+/* ── User dropdown ───────────────────────────────────── */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--g1);
+  border: 1px solid var(--g3);
+  border-radius: 6px;
+  min-width: 160px;
+  z-index: 6000;
+  overflow: hidden;
+}
+.user-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  font-size: .8rem;
+  color: var(--g6);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--g2);
+  cursor: pointer;
+  transition: background .15s;
+}
+.user-dropdown button:last-child { border-bottom: none; }
+.user-dropdown button:hover { background: var(--g2); }
