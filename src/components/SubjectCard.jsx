@@ -60,7 +60,7 @@ export function PDFItem({ title, sub, icon = "📄", onClick }) {
 // ── ResourceTabs ──────────────────────────────
 function ResourceTabs({ subject, index }) {
   const openPDF    = useUIStore((s) => s.openPDF);
-  const openModal  = useUIStore((s) => s.openModal);
+  const setModalOpen = useUIStore((s) => s.setModalOpen);
   const activeFilter = useUIStore((s) => s.activeFilter);
 
   const defaultTab =
