@@ -1,11 +1,4 @@
-const TEAM = [
-  { name: "Varun Teja Cherukuthota", role: "Founder", dept: "AIDS, 3rd Year", quote: "The goal of THE AID 2 TIMES is to eliminate the friction between students and the resources they need. Everything should be one click away.", isFounder: true },
-  { name: "Teja Praharsha", role: "Moderator", dept: "AIDS, 3rd Year" },
-  { name: "Hannish Reddi", role: "Moderator", dept: "AIDS, 3rd Year" },
-  { name: "Aishwarya Veldandi", role: "Moderator", dept: "EVL, 3rd Year" },
-  { name: "Sai Sankeerth Reddy", role: "Moderator", dept: "MECH, 3rd Year" },
-  { name: "Laasya", role: "Moderator", dept: "AIDS, 3rd Year" },
-];
+import { TEAM_MEMBERS } from "../data/teamMembers";
 
 export function Team() {
   return (
@@ -13,7 +6,7 @@ export function Team() {
       <div className="sec-label">02 · The Team</div>
       <h2 className="sec-title">Built for the students.</h2>
       <div className="team-grid" id="teamGrid">
-        {TEAM.map((m, i) => {
+        {TEAM_MEMBERS.map((m, i) => {
           if (m.isFounder) {
             return (
               <div key={i} className="founder-card">
@@ -38,4 +31,7 @@ export function Team() {
 }
 
 export default Team;
+
+
+
 
