@@ -30,10 +30,7 @@ export const useCIEStore = create(
             ...s.marks,
             [sem]: {
               ...s.marks[sem],
-              [code]: {
-                ...(s.marks[sem]?.[code] || {}),
-                [key]: value,
-              },
+              [code]: { ...(s.marks[sem]?.[code] || {}), [key]: value },
             },
           },
         })),
@@ -86,22 +83,29 @@ export const useUIStore = create((set) => ({
   activeBranch: "AIDS",
   activeSem: "V",
   activeFilter: "all",
-  openSubjects: {},   
-  openUnits: {},      
-  pdfViewer: null,    
+  openSubjects: {},
+  openUnits: {},
+  pdfViewer: null,
   kbOpen: false,
-  modals: {}, 
+  modals: {},
 
   setReg: (r) => set({ activeReg: r, openSubjects: {}, openUnits: {} }),
   setBranch: (b) => set({ activeBranch: b, openSubjects: {}, openUnits: {} }),
   setSem: (s) => set({ activeSem: s, openSubjects: {}, openUnits: {} }),
   setFilter: (f) => set({ activeFilter: f }),
 
-  toggleSubject: (i) => set((s) => ({ openSubjects: { ...s.openSubjects, [i]: !s.openSubjects[i] } })),
-  toggleUnit: (si, ui) => set((s) => ({ openUnits: { ...s.openUnits, [`${si}_${ui}`]: !s.openUnits[`${si}_${ui}`] } })),
+  toggleSubject: (i) =>
+    set((s) => ({ openSubjects: { ...s.openSubjects, [i]: !s.openSubjects[i] } })),
+  toggleUnit: (si, ui) =>
+    set((s) => ({ openUnits: { ...s.openUnits, [`${si}_${ui}`]: !s.openUnits[`${si}_${ui}`] } })),
 
   openPDF: (title, url, id) => set({ pdfViewer: { title, url, id } }),
   closePDF: () => set({ pdfViewer: null }),
+
+  setKBOpen: (v) => set({ kbOpen: v }),
+  setModalOpen: (id, isOpen) =>
+    set((s) => ({ modals: { ...s.modals, [id]: isOpen } })),
+}));  closePDF: () => set({ pdfViewer: null }),
 
   setKBOpen: (v) => set({ kbOpen: v }),
   setModalOpen: (id, isOpen) => set((s) => ({ modals: { ...s.modals, [id]: isOpen } })), 
