@@ -29,7 +29,6 @@ export const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
 export const SGPA_MIN = 0;
-
 export const SGPA_MAX = 10;
 
 export const FILTERS = [
