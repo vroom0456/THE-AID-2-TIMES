@@ -33,10 +33,7 @@ export default function ResourceVault() {
         setSem(profile.semester);
       }
     } catch (err) {
-      console.error(
-        "Failed to load student profile:",
-        err
-      );
+      console.error(err);
     }
   }, [setBranch, setSem]);
 
@@ -78,14 +75,14 @@ export default function ResourceVault() {
     if (activeFilter === "pyp") {
       return subjects.filter(
         (s) =>
-          s.resources.pyp.mid.length ||
-          s.resources.pyp.endsem.length
+          s.resources?.pyp?.mid?.length ||
+          s.resources?.pyp?.endsem?.length
       );
     }
 
     if (activeFilter === "lab") {
       return subjects.filter(
-        (s) => s.resources.lab?.files?.length
+        (s) => s.resources?.lab?.files?.length
       );
     }
 
@@ -101,6 +98,182 @@ export default function ResourceVault() {
       <div className="res-controls">
         <div>
           <h2 className="sec-title">
+            Study Vault.
+          </h2>
+
+          <p
+            className="sec-sub"
+            style={{ marginBottom: 0 }}
+          >
+            Select regulation, branch & sem — or search globally.
+          </p>
+        </div>
+
+        <input
+          type="text"
+          className="search-input"
+          style={{ maxWidth: 340 }}
+          placeholder="Search subject or code… (Ctrl+K)"
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
+          }
+        />
+      </div>
+
+      <div className="reg-row">
+        <span className="reg-label">
+          REG:
+        </span>
+
+        {["R22A", "R21A"].map((r) => (
+          <button
+            key={r}
+            className={`reg-btn ${
+              activeReg === r ? "active" : ""
+            }`}
+            onClick={() => setReg(r)}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+
+      <div className="branch-grid">
+        {BRANCHES.map((b) => (
+          <button
+            key={b.code}
+            className={`branch-btn ${
+              activeBranch === b.code
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              setBranch(b.code)
+            }
+          >
+            {b.code}
+          </button>
+        ))}
+      </div>
+
+      <div className="sem-tabs">
+        {SEMS.map((s) => (
+          <button
+            key={s}
+            className={`sem-tab ${
+              activeSem === s ? "active" : ""
+            }`}
+            onClick={() => setSem(s)}
+          >
+            Sem {s}
+          </button>
+        ))}
+      </div>
+
+      <div className="filter-chips">
+        {[
+          { key: "all", label: "All" },
+          {
+            key: "theory",
+            label: "Theory Notes",
+          },
+          {
+            key: "pyp",
+            label: "Prev Year Papers",
+          },
+          {
+            key: "lab",
+            label: "Lab Manuals",
+          },
+        ].map((f) => (
+          <button
+            key={f.key}
+            className={`chip ${
+              activeFilter === f.key
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              setFilter(f.key)
+            }
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          activeFilter={activeFilter}
+        />
+      ) : (
+        <div className="subject-list">
+          {filtered.map(
+            (subject, i) => (
+              <SubjectCard
+                key={
+                  subject.code + i
+                }
+                subject={subject}
+                index={i}
+              />
+            )
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EmptyState({
+  activeFilter,
+}) {
+  const setModalOpen =
+    useUIStore(
+      (s) => s.setModalOpen
+    );
+
+  return (
+    <div
+      style={{
+        textAlign: "center",
+        padding: "52px 20px",
+        color: "var(--g4)",
+        border:
+          "1px dashed var(--g3)",
+        borderRadius: 5,
+        fontSize: ".88rem",
+      }}
+    >
+      {activeFilter !== "all" ? (
+        <>
+          No {activeFilter} resources uploaded yet for this selection.
+          <br />
+
+          <button
+            className="btn btn-outline"
+            style={{
+              marginTop: 12,
+              padding: "8px 16px",
+              fontSize: ".78rem",
+            }}
+            onClick={() =>
+              setModalOpen(
+                "contribute",
+                true
+              )
+            }
+          >
+            Contribute Resources +
+          </button>
+        </>
+      ) : (
+        "No subjects found for this selection."
+      )}
+    </div>
+  );
+}          <h2 className="sec-title">
             Study Vault.
           </h2>
 
