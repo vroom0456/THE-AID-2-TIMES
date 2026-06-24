@@ -47,9 +47,9 @@ export const profileSchema = z
 
     semester: z.coerce.number().min(1).max(8),
 
-    section: z
-      .string()
-      .regex(/^[A-Z]$/, "Use a single capital letter."),
+    section: z.enum(["1", "2", "3", "4", "5", "6"], {
+      errorMap: () => ({ message: "Select a section." }),
+    }),
 
     sgpas: z.record(z.string(), z.any()).default({}),
   })
@@ -83,3 +83,5 @@ export function buildSgpaArray(semester, sgpas = {}) {
     (_, i) => Number(sgpas[String(i + 1)] || 0)
   );
 }
+
+
