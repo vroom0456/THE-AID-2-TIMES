@@ -5,10 +5,25 @@ import { supabase } from "./supabase";
 export async function fetchStudentProfile(userId) {
   const { data, error } = await supabase
     .from("profiles")
-    .select("branch, semester, section, full_name, roll_no, previous_cgpa, profile_picture_url, role")
+    .select(`
+      id,
+      email,
+      full_name,
+      roll_no,
+      branch,
+      semester,
+      section,
+      profile_picture_url,
+      sgpas
+    `)
     .eq("id", userId)
     .single();
-  if (error) return null;
+
+  if (error) {
+    console.error("Error fetching student profile:", error);
+    return null;
+  }
+
   return data;
 }
 
@@ -17,6 +32,7 @@ export async function saveStudentProfile(userId, profileData) {
   const { error } = await supabase
     .from("profiles")
     .upsert({ id: userId, ...profileData, updated_at: new Date().toISOString() });
+  
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
@@ -99,16 +115,4 @@ export async function moveResource(id, { branch, semester, subject, unit, catego
     .eq("id", id);
   if (error) return { success: false, error: error.message };
   return { success: true };
-}
-
-// ── Upload profile picture to Supabase Storage ────────────────────────────────
-export async function uploadProfilePicture(userId, file) {
-  const ext = file.name.split(".").pop();
-  const path = `avatars/${userId}.${ext}`;
-  const { error } = await supabase.storage
-    .from("avatars")
-    .upload(path, file, { upsert: true, contentType: file.type });
-  if (error) return { success: false, error: error.message };
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  return { success: true, url: data.publicUrl };
 }
