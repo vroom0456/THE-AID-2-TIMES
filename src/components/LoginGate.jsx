@@ -8,7 +8,7 @@ import { useUserStore } from "../store/useStore";
 import { supabase } from "../lib/supabase";
 import { signUpUser, signInUser, sendPasswordReset, updateUserPassword } from "../services/authService";
 import { fetchStudentProfile, isProfileComplete, updateProfile } from "../services/profileService";
-import { uploadAvatar, deleteAvatar } from "../services/storageService";
+import { uploadAvatar } from "../services/storageService";
 import ImageCropper from "./profile/ImageCropper";
 import { authSchema, profileSchema, buildSgpaArray } from "../utils/validators";
 import { friendlyError } from "../utils/errorHelpers";
@@ -75,10 +75,9 @@ export default function LoginGate() {
   const [pendingEmail, setPendingEmail]   = useState(null);
   const [pendingName, setPendingName]     = useState(null);
 
-  const [pfpFile, setPfpFile]           = useState(null);
-  const [pfpPreview, setPfpPreview]     = useState(null);
-  const [photoRemoved, setPhotoRemoved] = useState(false);
-  const [cropSrc, setCropSrc]           = useState(null);
+  const [pfpFile, setPfpFile]       = useState(null);
+  const [pfpPreview, setPfpPreview] = useState(null);
+  const [cropSrc, setCropSrc]       = useState(null);
 
   const authForm    = useForm({ resolver: zodResolver(authSchema) });
   const forgotForm  = useForm({ resolver: zodResolver(forgotSchema) });
@@ -107,16 +106,12 @@ export default function LoginGate() {
 
   const handleCropConfirm = useCallback((croppedFile) => {
     setPfpFile(croppedFile);
-    setPhotoRemoved(false);
     setPfpPreview(URL.createObjectURL(croppedFile));
     setCropSrc(null);
   }, []);
 
   const handleCropCancel = useCallback(() => setCropSrc(null), []);
-
-  const removePfp = useCallback(() => {
-    setPfpFile(null); setPfpPreview(null); setPhotoRemoved(true);
-  }, []);
+  const removePfp = useCallback(() => { setPfpFile(null); setPfpPreview(null); }, []);
 
   const onAuthSubmit = useCallback(async (data) => {
     const toastId = toast.loading("Processing…");
@@ -127,9 +122,8 @@ export default function LoginGate() {
           password: data.password,
           fullName: data.fullName.trim(),
         });
-        // Store everything we need for profile step — don't rely on session
         setPendingUserId(user.id);
-        setPendingEmail(user.email || data.email);
+        setPendingEmail(data.email);
         setPendingName(data.fullName.trim());
         setMode("profile");
         toast.success("Account created! Complete your profile.", { id: toastId });
@@ -180,11 +174,9 @@ export default function LoginGate() {
     } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
   }, [resetForm]);
 
-  // FIX: no longer calls getCurrentUser() — uses pendingUserId/pendingEmail/pendingName
-  // stored at signup time, so this works even when Supabase session isn't active yet
   const onProfileSubmit = useCallback(async (data) => {
-    if (!pendingUserId) {
-      toast.error("Session expired. Please sign up again.");
+    if (!pendingUserId || !pendingEmail) {
+      toast.error("Session lost. Please sign up again.");
       setMode("signup");
       return;
     }
@@ -192,14 +184,13 @@ export default function LoginGate() {
     try {
       let finalPfpUrl = null;
       if (pfpFile) {
-        const { url } = await uploadAvatar(pendingUserId, pfpFile);
+        const url = await uploadAvatar(pendingUserId, pfpFile);
         finalPfpUrl = url;
       }
       const sgpaArr = buildSgpaArray(Number(data.semester), data.sgpas);
-      const fullName = pendingName || "";
 
       await updateProfile(pendingUserId, {
-        full_name: fullName,
+        full_name: pendingName,
         roll_no: data.roll_no,
         branch: data.branch,
         semester: Number(data.semester),
@@ -210,7 +201,7 @@ export default function LoginGate() {
 
       loginStore({
         id: pendingUserId,
-        name: fullName,
+        name: pendingName,
         email: pendingEmail,
         roll: data.roll_no,
         branch: data.branch,
@@ -236,7 +227,6 @@ export default function LoginGate() {
         <div className="login-logo">THE AID <span>2</span> TIMES</div>
         <div className="login-sub">CBIT's student resource portal</div>
 
-        {/* ── PROFILE SETUP ── */}
         {mode === "profile" && (
           <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} noValidate>
             <h2 className="login-heading">Complete Your Profile</h2>
@@ -267,12 +257,31 @@ export default function LoginGate() {
             </div>
             {Number(currentSem) > 1 && (
               <div className="form-row">
-                <label className="form-label">Previous SGPAs <span style={{ color: "var(--g4)", fontWeight: 400 }}>(optional)</span></label>
+                <label className="form-label">
+                  Previous SGPAs{" "}
+                  <span style={{ color: "var(--g4)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                </label>
                 <div className="login-cgpa-grid">
                   {Array.from({ length: Number(currentSem) - 1 }, (_, i) => i + 1).map((n) => (
                     <div className="login-cgpa-item" key={n}>
                       <label htmlFor={`sgpa_${n}`}>Sem {n}</label>
-                      <input id={`sgpa_${n}`} type="number" step="0.01" min="0" max="10" placeholder="—" {...profileForm.register(`sgpas.${n}`)} />
+                      <input
+                        id={`sgpa_${n}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="10"
+                        placeholder="—"
+                        onKeyDown={(e) => {
+                          if (
+                            !/[\d.]/.test(e.key) &&
+                            !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)
+                          ) {
+                            e.preventDefault();
+                          }
+                        }}
+                        {...profileForm.register(`sgpas.${n}`)}
+                      />
                     </div>
                   ))}
                 </div>
@@ -284,7 +293,6 @@ export default function LoginGate() {
           </form>
         )}
 
-        {/* ── FORGOT PASSWORD ── */}
         {mode === "forgot" && (
           <form onSubmit={forgotForm.handleSubmit(onForgotSubmit)} noValidate>
             <h2 className="login-heading">Reset Password</h2>
@@ -305,7 +313,6 @@ export default function LoginGate() {
           </form>
         )}
 
-        {/* ── RESET PASSWORD ── */}
         {mode === "reset" && (
           <form onSubmit={resetForm.handleSubmit(onResetSubmit)} noValidate>
             <h2 className="login-heading">Set New Password</h2>
@@ -325,7 +332,6 @@ export default function LoginGate() {
           </form>
         )}
 
-        {/* ── SIGNUP / LOGIN ── */}
         {mode !== "profile" && mode !== "forgot" && mode !== "reset" && (
           <form onSubmit={authForm.handleSubmit(onAuthSubmit)} noValidate>
             <h2 className="login-heading">{mode === "signup" ? "Create Account" : "Sign In"}</h2>
@@ -338,18 +344,21 @@ export default function LoginGate() {
             )}
             <div className="form-row">
               <label className="form-label" htmlFor="email">Email</label>
-              <input id="email" className="form-input" type="email" placeholder="you@college.edu" autoComplete={mode === "login" ? "email" : "new-email"} {...authForm.register("email")} />
+              <input id="email" className="form-input" type="email" placeholder="you@college.edu"
+                autoComplete={mode === "login" ? "email" : "new-email"} {...authForm.register("email")} />
               <FieldError error={authForm.formState.errors.email} />
             </div>
             <div className="form-row">
               <label className="form-label" htmlFor="password">Password</label>
-              <input id="password" className="form-input" type="password" placeholder="••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} {...authForm.register("password")} />
+              <input id="password" className="form-input" type="password" placeholder="••••••"
+                autoComplete={mode === "login" ? "current-password" : "new-password"} {...authForm.register("password")} />
               <FieldError error={authForm.formState.errors.password} />
             </div>
             {mode === "signup" && (
               <div className="form-row">
                 <label className="form-label" htmlFor="confirm">Confirm Password</label>
-                <input id="confirm" className="form-input" type="password" placeholder="••••••" autoComplete="new-password" {...authForm.register("confirm")} />
+                <input id="confirm" className="form-input" type="password" placeholder="••••••"
+                  autoComplete="new-password" {...authForm.register("confirm")} />
                 <FieldError error={authForm.formState.errors.confirm} />
               </div>
             )}
