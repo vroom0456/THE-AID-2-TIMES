@@ -46,3 +46,5 @@ export default function Modal({ title, sub, children, onClose, wide, headerExtra
     </div>
   );
 }
+
+
