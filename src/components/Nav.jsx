@@ -44,7 +44,6 @@ export default function Nav() {
       }
       setActiveSection(cur);
     };
-
     window.addEventListener("scroll", handle, { passive: true });
     return () => window.removeEventListener("scroll", handle);
   }, []);
