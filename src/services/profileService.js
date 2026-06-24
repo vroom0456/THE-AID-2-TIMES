@@ -26,10 +26,11 @@ export async function createProfile(payload) {
 }
 
 export async function updateProfile(userId, payload) {
-  return supabase
+  const { error } = await supabase
     .from("profiles")
     .update(payload)
     .eq("id", userId);
+  if (error) throw error;  // ← was silently returning the error object before
 }
 
 export async function getProfile(userId) {
@@ -43,5 +44,3 @@ export async function getProfile(userId) {
 
   return data;
 }
-
-
