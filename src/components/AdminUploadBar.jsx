@@ -20,3 +20,5 @@ const AdminUploadBar = ({ subject, reg, branch, sem }) => {
 
 export default AdminUploadBar;
 
+
+
