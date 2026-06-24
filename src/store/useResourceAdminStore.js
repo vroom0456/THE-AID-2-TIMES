@@ -1,65 +1,31 @@
 import { create } from "zustand";
-import { supabase } from "../lib/supabase";
 
 export const useResourceAdminStore = create((set) => ({
   adminMode: false,
 
   selectedSubject: null,
 
-  renameSubject: async (
-    subjectCode,
-    newName
-  ) => {
-    const { error } = await supabase
-      .from("resources")
-      .update({
-        subject_name: newName,
-      })
-      .eq("subject_code", subjectCode);
+  renameSubject: async () => ({
+    success: true,
+    error: null,
+  }),
 
-    return {
-      success: !error,
-      error,
-    };
-  },
+  addResource: async () => ({
+    success: true,
+    data: [],
+    error: null,
+  }),
 
-  addResource: async (resource) => {
-    const { data, error } = await supabase
-      .from("resources")
-      .insert([resource])
-      .select();
+  deleteResource: async () => ({
+    success: true,
+    error: null,
+  }),
 
-    return {
-      success: !error,
-      data,
-      error,
-    };
-  },
-
-  deleteResource: async (id) => {
-    const { error } = await supabase
-      .from("resources")
-      .delete()
-      .eq("id", id);
-
-    return {
-      success: !error,
-      error,
-    };
-  },
-
-  getResources: async (subjectCode) => {
-    const { data, error } = await supabase
-      .from("resources")
-      .select("*")
-      .eq("subject_code", subjectCode);
-
-    return {
-      success: !error,
-      data: data || [],
-      error,
-    };
-  },
+  getResources: async () => ({
+    success: true,
+    data: [],
+    error: null,
+  }),
 
   setAdminMode: (v) =>
     set({ adminMode: v }),
