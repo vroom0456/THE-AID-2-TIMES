@@ -105,8 +105,4 @@ export const useUIStore = create((set) => ({
   setKBOpen: (v) => set({ kbOpen: v }),
   setModalOpen: (id, isOpen) =>
     set((s) => ({ modals: { ...s.modals, [id]: isOpen } })),
-}));  closePDF: () => set({ pdfViewer: null }),
-
-  setKBOpen: (v) => set({ kbOpen: v }),
-  setModalOpen: (id, isOpen) => set((s) => ({ modals: { ...s.modals, [id]: isOpen } })), 
 }));
