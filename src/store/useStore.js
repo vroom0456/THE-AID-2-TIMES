@@ -1,3 +1,4 @@
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -106,3 +107,5 @@ export const useUIStore = create((set) => ({
   setModalOpen: (id, isOpen) =>
     set((s) => ({ modals: { ...s.modals, [id]: isOpen } })),
 }));
+
+
