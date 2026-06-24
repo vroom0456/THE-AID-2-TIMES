@@ -60,7 +60,8 @@ function AvatarPicker({ preview, onPick, onRemove }) {
 export default function LoginGate() {
   const loginStore = useUserStore((s) => s.login);
 
-  const [mode, setMode] = useState("login");
+  // ← default is now "signup" so new visitors see Sign Up first
+  const [mode, setMode] = useState("signup");
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -72,6 +73,7 @@ export default function LoginGate() {
     });
     return () => sub?.subscription?.unsubscribe();
   }, []);
+
   const [pendingUserId, setPendingUserId] = useState(null);
   const [pendingEmail, setPendingEmail]   = useState(null);
 
@@ -122,13 +124,16 @@ export default function LoginGate() {
     const toastId = toast.loading("Processing…");
     try {
       if (mode === "signup") {
+        // After signup → go to profile page to complete details
         const { user } = await signUpUser({ email: data.email, password: data.password, fullName: data.fullName.trim() });
         setPendingUserId(user.id); setPendingEmail(user.email); setMode("profile");
         toast.success("Account created! Complete your profile.", { id: toastId });
       } else {
+        // After login → if profile already complete, go straight to home
         const { user } = await signInUser({ email: data.email, password: data.password });
         const profile = await fetchStudentProfile(user.id);
         if (!isProfileComplete(profile)) {
+          // Edge case: signed up before but never finished profile
           setPendingUserId(user.id); setPendingEmail(user.email); setMode("profile");
           toast.dismiss(toastId); return;
         }
@@ -183,12 +188,13 @@ export default function LoginGate() {
         full_name: fullName, roll_no: data.roll_no, branch: data.branch,
         semester: Number(data.semester), section: data.section, profile_picture_url: finalPfpUrl, sgpas: sgpaArr,
       });
+      // Profile saved → log user in and go directly to home
       loginStore({
         id: pendingUserId, name: fullName, email: pendingEmail || currentUser.email,
         roll: data.roll_no, branch: data.branch, semester: Number(data.semester), sem: Number(data.semester),
         section: data.section, pfp: finalPfpUrl, sgpas: sgpaArr,
       });
-      toast.success("Profile saved!", { id: toastId });
+      toast.success("Profile saved! Welcome 🎉", { id: toastId });
     } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
   }, [pendingUserId, pendingEmail, pfpFile, photoRemoved, loginStore]);
 
@@ -199,6 +205,10 @@ export default function LoginGate() {
         <ImageCropper imageSrc={cropSrc} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
       )}
       <div className="login-box">
+        <div className="login-logo">THE AID <span>2</span> TIMES</div>
+        <div className="login-sub">CBIT's student resource portal</div>
+
+        {/* ── PROFILE SETUP (only shown after fresh signup) ── */}
         {mode === "profile" && (
           <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} noValidate>
             <h2 className="login-heading">Complete Your Profile</h2>
@@ -240,11 +250,13 @@ export default function LoginGate() {
                 </div>
               </div>
             )}
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 12 }} disabled={profileForm.formState.isSubmitting}>
-              {profileForm.formState.isSubmitting ? "Saving…" : "Save Profile"}
+            <button type="submit" className="btn btn-gold" style={{ width: "100%", marginTop: 12 }} disabled={profileForm.formState.isSubmitting}>
+              {profileForm.formState.isSubmitting ? "Saving…" : "Save Profile & Enter →"}
             </button>
           </form>
         )}
+
+        {/* ── FORGOT PASSWORD ── */}
         {mode === "forgot" && (
           <form onSubmit={forgotForm.handleSubmit(onForgotSubmit)} noValidate>
             <h2 className="login-heading">Reset Password</h2>
@@ -256,7 +268,7 @@ export default function LoginGate() {
               <input id="forgot_email" className="form-input" type="email" placeholder="you@college.edu" autoComplete="email" {...forgotForm.register("email")} />
               <FieldError error={forgotForm.formState.errors.email} />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 8 }} disabled={forgotForm.formState.isSubmitting}>
+            <button type="submit" className="btn btn-gold" style={{ width: "100%", marginTop: 8 }} disabled={forgotForm.formState.isSubmitting}>
               {forgotForm.formState.isSubmitting ? "Sending…" : "Send Reset Link"}
             </button>
             <div style={{ textAlign: "center", marginTop: 14, fontSize: ".82rem" }}>
@@ -265,6 +277,7 @@ export default function LoginGate() {
           </form>
         )}
 
+        {/* ── RESET PASSWORD ── */}
         {mode === "reset" && (
           <form onSubmit={resetForm.handleSubmit(onResetSubmit)} noValidate>
             <h2 className="login-heading">Set New Password</h2>
@@ -278,15 +291,17 @@ export default function LoginGate() {
               <input id="confirm_password" type="password" className="form-input" placeholder="••••••" autoComplete="new-password" {...resetForm.register("confirm")} />
               <FieldError error={resetForm.formState.errors.confirm} />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 8 }} disabled={resetForm.formState.isSubmitting}>
+            <button type="submit" className="btn btn-gold" style={{ width: "100%", marginTop: 8 }} disabled={resetForm.formState.isSubmitting}>
               {resetForm.formState.isSubmitting ? "Saving…" : "Update Password"}
             </button>
           </form>
         )}
 
+        {/* ── SIGNUP / LOGIN ── */}
         {mode !== "profile" && mode !== "forgot" && mode !== "reset" && (
           <form onSubmit={authForm.handleSubmit(onAuthSubmit)} noValidate>
             <h2 className="login-heading">{mode === "signup" ? "Create Account" : "Sign In"}</h2>
+
             {mode === "signup" && (
               <div className="form-row">
                 <label className="form-label" htmlFor="fullName">Full Name</label>
@@ -311,9 +326,11 @@ export default function LoginGate() {
                 <FieldError error={authForm.formState.errors.confirm} />
               </div>
             )}
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 8 }} disabled={authForm.formState.isSubmitting}>
-              {authForm.formState.isSubmitting ? "Please wait…" : mode === "signup" ? "Create Account" : "Sign In"}
+
+            <button type="submit" className="btn btn-gold" style={{ width: "100%", marginTop: 8 }} disabled={authForm.formState.isSubmitting}>
+              {authForm.formState.isSubmitting ? "Please wait…" : mode === "signup" ? "Create Account →" : "Sign In →"}
             </button>
+
             {mode === "login" && (
               <div style={{ textAlign: "center", marginTop: 10 }}>
                 <button type="button" className="link-btn" style={{ fontSize: ".78rem" }} onClick={() => setMode("forgot")}>
@@ -321,11 +338,17 @@ export default function LoginGate() {
                 </button>
               </div>
             )}
-            <div style={{ textAlign: "center", marginTop: 14, fontSize: ".82rem" }}>
-              {mode === "login" ? (
-                <>No account? <button type="button" className="link-btn" onClick={() => switchMode("signup")}>Sign up</button></>
+
+            {/* ← Signup shows "Already have an account? Sign in" / Login shows "No account? Sign up" */}
+            <div style={{ textAlign: "center", marginTop: 14, fontSize: ".82rem", color: "var(--g5)" }}>
+              {mode === "signup" ? (
+                <>Already have an account?{" "}
+                  <button type="button" className="link-btn" onClick={() => switchMode("login")}>Sign in</button>
+                </>
               ) : (
-                <>Already have an account? <button type="button" className="link-btn" onClick={() => switchMode("login")}>Sign in</button></>
+                <>No account?{" "}
+                  <button type="button" className="link-btn" onClick={() => switchMode("signup")}>Sign up</button>
+                </>
               )}
             </div>
           </form>
@@ -334,5 +357,3 @@ export default function LoginGate() {
     </div>
   );
 }
-
-
