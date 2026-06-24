@@ -9,3 +9,6 @@ export const saveSubjectResources = (reg, branch, sem, sub) => {
     lab: sub.resources.lab
   }));
 };
+
+
+
