@@ -36,3 +36,5 @@ export const useResourceAdminStore = create((set) => ({
   clearSubject: () =>
     set({ selectedSubject: null }),
 }));
+
+
