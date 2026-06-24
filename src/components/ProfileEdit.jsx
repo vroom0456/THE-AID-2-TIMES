@@ -3,8 +3,9 @@ import { useUserStore } from "../store/useStore";
 import { updateProfile } from "../services/profileService";
 import { uploadAvatar } from "../services/storageService";
 import { friendlyError } from "../utils/errorHelpers";
-import { BRANCH_CODES, BRANCH_LABELS, SEMESTERS, MAX_AVATAR_BYTES, SGPA_MIN, SGPA_MAX } from "../utils/constants";
+import { BRANCH_CODES, BRANCH_LABELS, SEMESTERS, SECTIONS, MAX_AVATAR_BYTES, SGPA_MIN, SGPA_MAX } from "../utils/constants";
 import Modal from "./ui/Modal";
+import ImageCropper from "./profile/ImageCropper";
 
 function clampSgpa(val) {
   const n = parseFloat(String(val));
@@ -29,18 +30,19 @@ export default function ProfileEdit({ onClose }) {
   const [name, setName]         = useState("");
   const [roll, setRoll]         = useState("");
   const [branch, setBranch]     = useState("AIDS");
-  const [section, setSection]   = useState("");
+  const [section, setSection]   = useState("1");
   const [semester, setSemester] = useState(5);
   const [sgpas, setSgpas]       = useState([]);
   const [pfpPreview, setPfpPreview] = useState(null);
   const [pfpFile, setPfpFile]       = useState(null);
+  const [cropSrc, setCropSrc]       = useState(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
 
   useEffect(() => {
     if (!user) return;
     setName(user.name || ""); setRoll(user.roll || ""); setBranch(user.branch || "AIDS");
-    setSection(user.section || ""); setSemester(user.semester ?? 5);
+    setSection(String(user.section || "1")); setSemester(user.semester ?? 5);
     setSgpas(user.sgpas || []); setPfpPreview(user.pfp || null); setPfpFile(null);
   }, [user]);
 
@@ -48,12 +50,20 @@ export default function ProfileEdit({ onClose }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_AVATAR_BYTES) { setError("Image must be under 5 MB."); return; }
-    setError(""); setPfpFile(file);
+    setError("");
     const reader = new FileReader();
-    reader.onload = (ev) => setPfpPreview(ev.target.result);
+    reader.onload = (ev) => setCropSrc(ev.target.result);
     reader.readAsDataURL(file);
     e.target.value = "";
   }, []);
+
+  const handleCropConfirm = useCallback((croppedFile) => {
+    setPfpFile(croppedFile);
+    setPfpPreview(URL.createObjectURL(croppedFile));
+    setCropSrc(null);
+  }, []);
+
+  const handleCropCancel = useCallback(() => setCropSrc(null), []);
 
   const handleSgpaChange = useCallback((index, val) => {
     if (val !== "" && !/^\d{0,2}(\.\d{0,2})?$/.test(val)) return;
@@ -64,10 +74,10 @@ export default function ProfileEdit({ onClose }) {
   const handleSave = useCallback(async () => {
     if (loading || !user?.id) return;
     setError("");
-    const nameTrimmed = name.trim(), rollTrimmed = roll.trim(), sectionTrimmed = section.trim().toUpperCase();
+    const nameTrimmed = name.trim(), rollTrimmed = roll.trim(), sectionTrimmed = section.trim();
     if (!nameTrimmed || nameTrimmed.length < 2) return setError("Full name must be at least 2 characters.");
     if (!rollTrimmed || !/^\d{1,12}$/.test(rollTrimmed)) return setError("Roll number must be 1–12 digits.");
-    if (!/^[A-Z]$/.test(sectionTrimmed)) return setError("Section must be a single letter A–Z.");
+    if (!SECTIONS.map(String).includes(sectionTrimmed)) return setError("Select a valid section.");
     const semInt = Number(semester);
     if ((user.sgpas?.length || 0) > semInt - 1) {
       if (!window.confirm("Reducing your semester will remove SGPAs for later semesters. Continue?")) return;
@@ -93,6 +103,9 @@ export default function ProfileEdit({ onClose }) {
 
   return (
     <Modal title="Edit Profile" sub="Changes are saved to your account" onClose={onClose}>
+      {cropSrc && (
+        <ImageCropper imageSrc={cropSrc} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
+      )}
       <div className="pfp-wrap">
         <div className="pfp-preview">{pfpPreview ? <img src={pfpPreview} alt="Your avatar" /> : "?"}</div>
         <div>
@@ -110,7 +123,9 @@ export default function ProfileEdit({ onClose }) {
         <input className="form-input" value={roll} maxLength={12} inputMode="numeric" onChange={(e) => setRoll(e.target.value.replace(/\D/g, "").slice(0, 12))} />
       </FieldRow>
       <FieldRow label="Section">
-        <input className="form-input" value={section} onChange={(e) => setSection(e.target.value.replace(/[^a-zA-Z]/g, "").slice(0, 1).toUpperCase())} />
+        <select className="form-select" value={section} onChange={(e) => setSection(e.target.value)}>
+          {SECTIONS.map((s) => <option key={s} value={String(s)}>Section {s}</option>)}
+        </select>
       </FieldRow>
       <FieldRow label="Branch">
         <select className="form-select" value={branch} onChange={(e) => setBranch(e.target.value)}>
@@ -141,3 +156,6 @@ export default function ProfileEdit({ onClose }) {
     </Modal>
   );
 }
+
+
+
