@@ -7,7 +7,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { useUserStore } from "../store/useStore";
 import { supabase } from "../lib/supabase";
 import { signUpUser, signInUser, sendPasswordReset, updateUserPassword } from "../services/authService";
-import { fetchStudentProfile, isProfileComplete, updateProfile } from "../services/profileService";
+import { fetchStudentProfile, isProfileComplete, updateProfile, createProfile } from "../services/profileService";
 import { uploadAvatar } from "../services/storageService";
 import ImageCropper from "./profile/ImageCropper";
 import { authSchema, profileSchema, buildSgpaArray } from "../utils/validators";
@@ -122,6 +122,13 @@ export default function LoginGate() {
           password: data.password,
           fullName: data.fullName.trim(),
         });
+
+        // Immediately create the profile row after signup
+        await createProfile({
+          id: user.id,
+          full_name: data.fullName.trim(),
+        });
+
         setPendingUserId(user.id);
         setPendingEmail(data.email);
         setPendingName(data.fullName.trim());
