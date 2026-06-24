@@ -1,117 +1,72 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
-export const useResourceAdminStore =
-create((set) => ({
-adminMode: false,
 
-selectedSubject: null,
+export const useResourceAdminStore = create((set) => ({
+  adminMode: false,
 
-setAdminMode: (v) =>
-  set({
-    adminMode: v,
-  }),
+  selectedSubject: null,
 
-selectSubject: (
-  subject
-) =>
-  set({
-    selectedSubject:
-      subject,
-  }),
-
-clearSubject: () =>
-  set({
-    selectedSubject:
-      null,
-  }),
-
-renameSubject:
-  async (
+  renameSubject: async (
     subjectCode,
     newName
   ) => {
-    const {
-      error,
-    } = await supabase
-      .from(
-        "resources"
-      )
+    const { error } = await supabase
+      .from("resources")
       .update({
-        subject_name:
-          newName,
+        subject_name: newName,
       })
-      .eq(
-        "subject_code",
-        subjectCode
-      );
+      .eq("subject_code", subjectCode);
 
     return {
-      success:
-        !error,
+      success: !error,
       error,
     };
   },
 
-deleteSubject:
-  async (
-    subjectCode
-  ) => {
-    const {
-      error,
-    } = await supabase
-      .from(
-        "resources"
-      )
-      .delete()
-      .eq(
-        "subject_code",
-        subjectCode
-      );
+  addResource: async (resource) => {
+    const { data, error } = await supabase
+      .from("resources")
+      .insert([resource])
+      .select();
 
     return {
-      success:
-        !error,
+      success: !error,
+      data,
       error,
     };
   },
 
-addResource:
-  async (
-    resource
-  ) => {
-    const {
-      error,
-    } = await supabase
-      .from(
-        "resources"
-      )
-      .insert(
-        resource
-      );
-
-    return {
-      success:
-        !error,
-      error,
-    };
-  },
-
-deleteResource:
-  async (id) => {
-    const {
-      error,
-    } = await supabase
-      .from(
-        "resources"
-      )
+  deleteResource: async (id) => {
+    const { error } = await supabase
+      .from("resources")
       .delete()
       .eq("id", id);
 
     return {
-      success:
-        !error,
+      success: !error,
       error,
     };
   },
 
+  getResources: async (subjectCode) => {
+    const { data, error } = await supabase
+      .from("resources")
+      .select("*")
+      .eq("subject_code", subjectCode);
+
+    return {
+      success: !error,
+      data: data || [],
+      error,
+    };
+  },
+
+  setAdminMode: (v) =>
+    set({ adminMode: v }),
+
+  selectSubject: (subject) =>
+    set({ selectedSubject: subject }),
+
+  clearSubject: () =>
+    set({ selectedSubject: null }),
 }));
