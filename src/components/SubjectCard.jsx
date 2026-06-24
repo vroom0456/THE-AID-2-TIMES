@@ -346,3 +346,6 @@ export default function SubjectCard({ subject, index, isAdmin, onReload, branch,
     </div>
   );
 }
+
+
+
