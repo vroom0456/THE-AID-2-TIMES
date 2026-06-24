@@ -15,7 +15,6 @@ export const authSchema = z
         message: "Passwords do not match.",
       });
     }
-
     if (data.confirm && (!data.fullName || data.fullName.trim().length < 2)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -28,20 +27,12 @@ export const authSchema = z
 export const profileSchema = z.object({
   roll_no: z
     .string()
-    .regex(/^\d+$/, "Numeric only.")
+    .regex(/^\d+$/, "Roll number must be numeric.")
     .max(12, "Maximum 12 digits."),
 
   branch: z.enum([
-    "AIDS",
-    "CSE",
-    "AIML",
-    "IT",
-    "CIC",
-    "ECE",
-    "EVL",
-    "MECHANICAL",
-    "CIVIL",
-    "BIOTECH",
+    "AIDS", "CSE", "AIML", "IT", "CIC",
+    "ECE", "EVL", "MECHANICAL", "CIVIL", "BIOTECH",
   ]),
 
   semester: z.coerce.number().min(1).max(8),
@@ -50,16 +41,16 @@ export const profileSchema = z.object({
     errorMap: () => ({ message: "Select a section." }),
   }),
 
-  // SGPAs are fully optional — any value or empty is accepted
+  // Fully optional — no validation on SGPA values
   sgpas: z.record(z.string(), z.any()).default({}),
 });
 
+// semester first, sgpas second (was being called in wrong order before)
 export function buildSgpaArray(semester, sgpas = {}) {
-  return Array.from(
-    { length: semester - 1 },
-    (_, i) => {
-      const val = parseFloat(sgpas[String(i + 1)]);
-      return isNaN(val) ? null : val;
-    }
-  );
+  return Array.from({ length: semester - 1 }, (_, i) => {
+    const raw = sgpas[String(i + 1)];
+    if (raw === undefined || raw === null || raw === "") return null;
+    const val = parseFloat(raw);
+    return isNaN(val) ? null : Math.min(10, Math.max(0, val));
+  });
 }
