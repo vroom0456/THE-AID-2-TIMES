@@ -2,7 +2,35 @@ import { useState, useMemo } from "react";
 import { BRANCHES, SEMS, SUBJECTS } from "../data/curriculum";
 import { useUIStore } from "../store/useStore";
 import SubjectCard from "./SubjectCard";
+import {
+  useState,
+  useMemo,
+  useEffect,
+} from "react";
+useEffect(() => {
+  try {
+    const profile =
+      JSON.parse(
+        localStorage.getItem(
+          "studentProfile"
+        )
+      );
 
+    if (!profile) return;
+
+    if (profile.branch)
+      setBranch(
+        profile.branch
+      );
+
+    if (profile.semester)
+      setSem(
+        profile.semester
+      );
+  } catch (err) {
+    console.log(err);
+  }
+}, []);
 export default function ResourceVault() {
   const {
     activeReg, activeBranch, activeSem, activeFilter,
