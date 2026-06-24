@@ -204,3 +204,5 @@ function GradePredictor({ sem, branch }) {
     </div>
   );
 }
+
+
