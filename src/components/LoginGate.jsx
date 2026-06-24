@@ -23,7 +23,7 @@ export default function LoginGate() {
 
   // Profile form
   const [profileForm, setProfileForm] = useState({
-    roll_no: "", branch: "AIDS", semester: "V", section: "", previous_cgpa: "",
+    roll_no: "", branch: "AIDS", semester: "V", section: "",
   });
   const [pfpFile, setPfpFile] = useState(null);
   const [pfpPreview, setPfpPreview] = useState(null);
@@ -101,8 +101,16 @@ export default function LoginGate() {
           branch: profile.branch || "AIDS",
           semester: profile.semester || "V",
           section: profile.section || "",
-          previous_cgpa: profile.previous_cgpa || "",
         });
+        
+        // Pre-fill SGPAs if they exist in DB so user doesn't lose them
+        if (profile.sgpas && Array.isArray(profile.sgpas)) {
+          const loadedSgpas = {};
+          profile.sgpas.forEach((val, idx) => {
+            loadedSgpas[idx + 1] = val;
+          });
+          setSgpas(loadedSgpas);
+        }
       }
       setLoading(false);
       setMode("profile");
@@ -120,10 +128,9 @@ export default function LoginGate() {
       semester: profile.semester,
       sem: semI + 1,
       section: profile.section,
-      previous_cgpa: profile.previous_cgpa,
       pfp: profile.profile_picture_url || null,
       role: profile.role || "user",
-      sgpas: [],
+      sgpas: profile.sgpas || [],
     });
     setLoading(false);
   }
@@ -154,18 +161,20 @@ export default function LoginGate() {
 
     const sgpaArr = Array.from({ length: semIndex - 1 }, (_, i) => parseFloat(sgpas[i + 1]) || 0);
 
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
     // Save to Supabase profiles
     const { error: profileErr } = await supabase.from("profiles").upsert({
       id: pendingUser.id,
       email: pendingUser.email,
-      full_name: authForm.fullName || (await supabase.auth.getUser()).data?.user?.user_metadata?.full_name || "",
+      full_name: currentUser?.user_metadata?.full_name || authForm.fullName || "",
       roll_no: profileForm.roll_no.trim(),
       branch: profileForm.branch,
       semester: profileForm.semester,
       section: profileForm.section.trim(),
-      previous_cgpa: parseFloat(profileForm.previous_cgpa) || null,
       profile_picture_url: pfpUrl,
       role: "user",
+      sgpas: sgpaArr,
       updated_at: new Date().toISOString(),
     });
 
@@ -175,13 +184,12 @@ export default function LoginGate() {
     loginStore({
       id: pendingUser.id,
       email: pendingUser.email,
-      name: authForm.fullName || "",
+      name: currentUser?.user_metadata?.full_name || authForm.fullName || "",
       roll: profileForm.roll_no.trim(),
       branch: profileForm.branch,
       semester: profileForm.semester,
       sem: semIndex,
       section: profileForm.section.trim(),
-      previous_cgpa: parseFloat(profileForm.previous_cgpa) || null,
       pfp: pfpUrl || pfpPreview,
       role: "user",
       sgpas: sgpaArr,
@@ -225,20 +233,26 @@ export default function LoginGate() {
             </div>
           ))}
 
-        
+          <div className="form-row">
+            <label className="form-label">Branch *</label>
+            <select
+              className="form-select"
+              value={profileForm.branch}
+              onChange={(e) => setP("branch", e.target.value)}
+            >
+              {BRANCHES.map((b) => (
+                <option key={b} value={b}>
+                  {BRANCH_LABELS[b]}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="form-row">
             <label className="form-label">Current Semester *</label>
             <select className="form-select" value={profileForm.semester} onChange={(e) => setP("semester", e.target.value)}>
               {SEM_LABELS.map((s) => <option key={s} value={s}>Sem {s}</option>)}
             </select>
-          </div>
-
-          <div className="form-row">
-            <label className="form-label">Previous Semester CGPA</label>
-            <input className="form-input" type="number" step="0.01" min="0" max="10"
-              placeholder="e.g. 8.45" value={profileForm.previous_cgpa}
-              onChange={(e) => setP("previous_cgpa", e.target.value)} />
           </div>
 
           {semIndex > 1 && (
