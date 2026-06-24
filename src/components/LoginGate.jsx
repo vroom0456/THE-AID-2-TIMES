@@ -1,178 +1,220 @@
-import React, { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import toast, { Toaster } from "react-hot-toast";
-import imageCompression from "browser-image-compression";
 
-import { supabase } from "../lib/supabase";
 import { useUserStore } from "../store/useStore";
-import { fetchStudentProfile } from "../lib/supabaseResources";
+import { signUpUser, signInUser, getCurrentUser } from "../services/authService";
+import { fetchStudentProfile, isProfileComplete, updateProfile } from "../services/profileService";
+import { uploadAvatar, deleteAvatar } from "../services/storageService";
+import { authSchema, profileSchema, buildSgpaArray } from "../utils/validators";
+import { friendlyError } from "../utils/errorHelpers";
+import {
+  BRANCH_CODES, BRANCH_LABELS, SEMESTERS, MAX_AVATAR_BYTES,
+} from "../utils/constants";
 
-// ─── CONSTANTS ─────────────────────────────────────────────────────────
-const BRANCHES = ["AIDS", "CSE", "AIML", "IT", "CIC", "ECE", "EVL", "MECHANICAL", "CIVIL", "BIOTECH"];
-const BRANCH_LABELS = {
-  AIDS: "AI & Data Science", CSE: "Computer Science", AIML: "AI & ML",
-  IT: "Information Technology", CIC: "CS (IoT & Cyber)", ECE: "Electronics & Comm",
-  EVL: "EV & VLSI", MECHANICAL: "Mechanical", CIVIL: "Civil", BIOTECH: "Bio-Technology",
-};
-const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
+function FieldError({ error }) {
+  if (!error) return null;
+  return <p className="error" role="alert">{error.message}</p>;
+}
 
-// ─── VALIDATION SCHEMAS ────────────────────────────────────────────────
-const authSchema = z.object({
-  email: z.string().email("Invalid email."),
-  password: z.string().min(6, "Min 6 characters."),
-  fullName: z.string().optional(),
-  confirm: z.string().optional(),
-}).superRefine((data, ctx) => {
-  if (data.confirm && data.password !== data.confirm) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Passwords do not match.", path: ["confirm"] });
-  }
-  if (data.confirm && (!data.fullName || data.fullName.length < 2)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Name required.", path: ["fullName"] });
-  }
-});
+function AvatarPicker({ preview, onPick, onRemove }) {
+  return (
+    <div className="pfp-wrap">
+      <div className="pfp-preview" aria-label="Avatar preview">
+        {preview ? <img src={preview} alt="Profile avatar" /> : "?"}
+      </div>
+      <div>
+        <label className="pfp-btn" style={{ cursor: "pointer" }}>
+          📷 Upload Photo
+          <input type="file" accept="image/*" hidden onChange={onPick} aria-label="Upload profile photo" />
+        </label>
+        {preview && (
+          <button type="button" className="btn btn-outline" onClick={onRemove}
+            style={{ marginTop: 6, fontSize: ".75rem", padding: "4px 10px" }}>
+            ❌ Remove
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
-const profileSchema = z.object({
-  roll_no: z.string().regex(/^\d+$/, "Numeric only.").max(12, "Max 12 digits."),
-  branch: z.enum(["AIDS", "CSE", "AIML", "IT", "CIC", "ECE", "EVL", "MECHANICAL", "CIVIL", "BIOTECH"]),
-  semester: z.coerce.number().min(1).max(8),
-  section: z.string().regex(/^[A-Z]$/, "A-Z only."),
-  sgpas: z.record(z.string(), z.any()).default({}),
-});
-
-// ─── COMPONENT ─────────────────────────────────────────────────────────
 export default function LoginGate() {
   const loginStore = useUserStore((s) => s.login);
+
   const [mode, setMode] = useState("login");
-  const [pendingUser, setPendingUser] = useState(null);
-  const [pfpFile, setPfpFile] = useState(null);
-  const [pfpPreview, setPfpPreview] = useState(null);
+  const [pendingUserId, setPendingUserId] = useState(null);
+  const [pendingEmail, setPendingEmail]   = useState(null);
+
+  const [pfpFile, setPfpFile]           = useState(null);
+  const [pfpPreview, setPfpPreview]     = useState(null);
   const [photoRemoved, setPhotoRemoved] = useState(false);
 
   const authForm = useForm({ resolver: zodResolver(authSchema) });
   const profileForm = useForm({
     resolver: zodResolver(profileSchema),
-    defaultValues: { branch: "AIDS", semester: 5, section: "", roll_no: "" }
+    defaultValues: { branch: "AIDS", semester: 5, section: "", roll_no: "" },
   });
 
   const currentSem = profileForm.watch("semester");
 
-  const handlePfp = (e) => {
-    const file = e.target.files && e.target.files[0];
+  const switchMode = useCallback((next) => {
+    authForm.reset();
+    setMode(next);
+  }, [authForm]);
+
+  const handlePfp = useCallback((e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return toast.error("Max 5MB.");
+    if (file.size > MAX_AVATAR_BYTES) { toast.error("Image must be under 5 MB."); return; }
     setPfpFile(file);
     setPhotoRemoved(false);
     const reader = new FileReader();
     reader.onload = (ev) => setPfpPreview(ev.target.result);
     reader.readAsDataURL(file);
-  };
+    e.target.value = "";
+  }, []);
 
-  const removePfp = () => { setPfpFile(null); setPfpPreview(null); setPhotoRemoved(true); };
+  const removePfp = useCallback(() => {
+    setPfpFile(null); setPfpPreview(null); setPhotoRemoved(true);
+  }, []);
 
-  const onAuthSubmit = async (data) => {
-    const toastId = toast.loading("Processing...");
+  const onAuthSubmit = useCallback(async (data) => {
+    const toastId = toast.loading("Processing…");
     try {
       if (mode === "signup") {
-        const { data: authData, error: signupErr } = await supabase.auth.signUp({
-          email: data.email, password: data.password, options: { data: { full_name: data.fullName } }
-        });
-        if (signupErr) throw signupErr;
-        if (!authData.user) throw new Error("Account creation failed.");
-        
-        const { error: pErr } = await supabase.from("profiles").insert({
-          id: authData.user.id, email: data.email, full_name: data.fullName, created_at: new Date().toISOString()
-        });
-        if (pErr) throw pErr;
-        setPendingUser(authData.user);
-        setMode("profile");
-        toast.success("Success!", { id: toastId });
+        const { user } = await signUpUser({ email: data.email, password: data.password, fullName: data.fullName.trim() });
+        setPendingUserId(user.id); setPendingEmail(user.email); setMode("profile");
+        toast.success("Account created! Complete your profile.", { id: toastId });
       } else {
-        const { data: authData, error: loginErr } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password });
-        if (loginErr) throw loginErr;
-        const profile = await fetchStudentProfile(authData.user.id);
-        if (!profile?.roll_no || !profile?.branch || !profile?.semester || !profile?.section) {
-          setPendingUser(authData.user);
-          setMode("profile");
-          return;
+        const { user } = await signInUser({ email: data.email, password: data.password });
+        const profile = await fetchStudentProfile(user.id);
+        if (!isProfileComplete(profile)) {
+          setPendingUserId(user.id); setPendingEmail(user.email); setMode("profile");
+          toast.dismiss(toastId); return;
         }
-        loginStore({ id: authData.user.id, ...profile, name: profile.full_name, roll: profile.roll_no, pfp: profile.profile_picture_url });
+        loginStore({
+          id: user.id, name: profile.full_name, email: user.email, roll: profile.roll_no,
+          branch: profile.branch, semester: profile.semester, sem: profile.semester,
+          section: profile.section, pfp: profile.profile_picture_url, sgpas: profile.sgpas || [],
+        });
         toast.success("Welcome back!", { id: toastId });
       }
-    } catch (err) { toast.error(err.message, { id: toastId }); }
-  };
+    } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
+  }, [mode, loginStore]);
 
-  const onProfileSubmit = async (data) => {
-    if (!pendingUser) { toast.error("Session expired."); return; }
-    const toastId = toast.loading("Saving...");
+  const onProfileSubmit = useCallback(async (data) => {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || !pendingUserId) {
+      toast.error("Session expired. Please log in again."); setMode("login"); setPendingUserId(null); return;
+    }
+    const toastId = toast.loading("Saving profile…");
     try {
-      const { data: { user: currentUser }, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !currentUser) throw new Error("Session expired.");
-
-      const { data: currentProfile } = await supabase.from("profiles")
-        .select("full_name, profile_picture_url").eq("id", pendingUser.id).single();
-      
-      let finalPfpUrl = photoRemoved ? null : currentProfile?.profile_picture_url;
-      if (pfpFile) {
-        const compressed = await imageCompression(pfpFile, { maxSizeMB: 0.3, maxWidthOrHeight: 800, useWebWorker: true, fileType: "image/jpeg" });
-        const { error: sErr } = await supabase.storage.from("avatars").upload(`${pendingUser.id}/avatar.jpeg`, compressed, { 
-          contentType: "image/jpeg", upsert: true 
-        });
-        if (sErr) throw new Error("Upload failed.");
-        const { data: url } = supabase.storage.from("avatars").getPublicUrl(`${pendingUser.id}/avatar.jpeg`);
-        finalPfpUrl = `${url.publicUrl}?t=${Date.now()}`;
-      } else if (photoRemoved) {
-        await supabase.storage.from("avatars").remove([`${pendingUser.id}/avatar.jpeg`]).catch(() => {});
-      }
-
-      const sgpaArr = Array.from({ length: data.semester - 1 }, (_, i) => Number(data.sgpas[String(i + 1)] || 0));
-      const fullName = currentUser.user_metadata?.full_name || currentProfile?.full_name || "";
-
-      const { error: profileErr } = await supabase.from("profiles").update({
-        full_name: fullName, roll_no: data.roll_no, branch: data.branch, semester: data.semester,
-        section: data.section, profile_picture_url: finalPfpUrl, sgpas: sgpaArr, updated_at: new Date().toISOString()
-      }).eq("id", pendingUser.id);
-
-      if (profileErr) throw profileErr;
-
-      loginStore({
-        id: pendingUser.id, name: fullName, email: pendingUser.email,
-        roll: data.roll_no, branch: data.branch, semester: data.semester,
-        sem: data.semester, section: data.section, pfp: finalPfpUrl, sgpas: sgpaArr
+      const existing = await fetchStudentProfile(pendingUserId);
+      let finalPfpUrl = photoRemoved ? null : (existing?.profile_picture_url || null);
+      if (pfpFile) { const { url } = await uploadAvatar(pendingUserId, pfpFile); finalPfpUrl = url; }
+      else if (photoRemoved && existing?.profile_picture_url) { deleteAvatar(pendingUserId); }
+      const sgpaArr = buildSgpaArray(data.sgpas, Number(data.semester));
+      const fullName = currentUser.user_metadata?.full_name || existing?.full_name || data.fullName || "";
+      await updateProfile(pendingUserId, {
+        full_name: fullName, roll_no: data.roll_no, branch: data.branch,
+        semester: Number(data.semester), section: data.section, profile_picture_url: finalPfpUrl, sgpas: sgpaArr,
       });
-      toast.success("Saved!", { id: toastId });
-    } catch (err) { toast.error(err.message, { id: toastId }); }
-  };
+      loginStore({
+        id: pendingUserId, name: fullName, email: pendingEmail || currentUser.email,
+        roll: data.roll_no, branch: data.branch, semester: Number(data.semester), sem: Number(data.semester),
+        section: data.section, pfp: finalPfpUrl, sgpas: sgpaArr,
+      });
+      toast.success("Profile saved!", { id: toastId });
+    } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
+  }, [pendingUserId, pendingEmail, pfpFile, photoRemoved, loginStore]);
 
   return (
-    <div id="loginGate">
-      <Toaster />
+    <div id="loginGate" role="main" aria-label="Sign in">
+      <Toaster position="top-center" />
       <div className="login-box">
-        {mode === "profile" ? (
-          <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
-            <div className="pfp-wrap">
-              <div className="pfp-preview">{pfpPreview ? <img src={pfpPreview} alt="pfp" /> : "?"}</div>
-              <label>📷 Upload<input type="file" accept="image/*" hidden onChange={handlePfp}/></label>
-              {pfpPreview && <button type="button" onClick={removePfp}>❌ Remove</button>}
+        {mode === "profile" && (
+          <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} noValidate>
+            <h2 className="login-heading">Complete Your Profile</h2>
+            <AvatarPicker preview={pfpPreview} onPick={handlePfp} onRemove={removePfp} />
+            <div className="form-row">
+              <label className="form-label" htmlFor="roll_no">Roll Number</label>
+              <input id="roll_no" className="form-input" placeholder="e.g. 220010234" inputMode="numeric" {...profileForm.register("roll_no")} />
+              <FieldError error={profileForm.formState.errors.roll_no} />
             </div>
-            <input className="form-input" placeholder="Roll Number" {...profileForm.register("roll_no")} />
-            {profileForm.formState.errors.roll_no && <p className="error">{profileForm.formState.errors.roll_no.message}</p>}
-            <input className="form-input" placeholder="Section" {...profileForm.register("section")} />
-            <select {...profileForm.register("branch")}>{BRANCHES.map(b => <option key={b} value={b}>{BRANCH_LABELS[b]}</option>)}</select>
-            <select {...profileForm.register("semester", { valueAsNumber: true })}>{SEMESTERS.map(s => <option key={s} value={s}>Sem {s}</option>)}</select>
-            {currentSem > 1 && Array.from({ length: currentSem - 1 }, (_, i) => i + 1).map(n => (
-              <input key={n} type="number" step="0.01" placeholder={`Sem ${n} SGPA`} {...profileForm.register(`sgpas.${n}`)} />
-            ))}
-            <button type="submit" disabled={profileForm.formState.isSubmitting}>Save Profile</button>
+            <div className="form-row">
+              <label className="form-label" htmlFor="section">Section</label>
+              <input id="section" className="form-input" placeholder="e.g. A" maxLength={1} {...profileForm.register("section")} />
+              <FieldError error={profileForm.formState.errors.section} />
+            </div>
+            <div className="form-row">
+              <label className="form-label" htmlFor="branch">Branch</label>
+              <select id="branch" className="form-select" {...profileForm.register("branch")}>
+                {BRANCH_CODES.map((b) => <option key={b} value={b}>{BRANCH_LABELS[b]}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <label className="form-label" htmlFor="semester">Current Semester</label>
+              <select id="semester" className="form-select" {...profileForm.register("semester", { valueAsNumber: true })}>
+                {SEMESTERS.map((s) => <option key={s} value={s}>Sem {s}</option>)}
+              </select>
+            </div>
+            {Number(currentSem) > 1 && (
+              <div className="form-row">
+                <label className="form-label">Semester-wise SGPAs</label>
+                <div className="login-cgpa-grid">
+                  {Array.from({ length: Number(currentSem) - 1 }, (_, i) => i + 1).map((n) => (
+                    <div className="login-cgpa-item" key={n}>
+                      <label htmlFor={`sgpa_${n}`}>Sem {n}</label>
+                      <input id={`sgpa_${n}`} type="number" step="0.01" min="0" max="10" placeholder="—" {...profileForm.register(`sgpas.${n}`)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 12 }} disabled={profileForm.formState.isSubmitting}>
+              {profileForm.formState.isSubmitting ? "Saving…" : "Save Profile"}
+            </button>
           </form>
-        ) : (
-          <form onSubmit={authForm.handleSubmit(onAuthSubmit)}>
-            {mode === "signup" && <input className="form-input" placeholder="Full Name" {...authForm.register("fullName")} />}
-            <input className="form-input" type="email" placeholder="Email" {...authForm.register("email")} />
-            <input className="form-input" type="password" placeholder="Password" {...authForm.register("password")} />
-            {mode === "signup" && <input className="form-input" type="password" placeholder="Confirm" {...authForm.register("confirm")} />}
-            <button type="submit" disabled={authForm.formState.isSubmitting}>Submit</button>
+        )}
+        {mode !== "profile" && (
+          <form onSubmit={authForm.handleSubmit(onAuthSubmit)} noValidate>
+            <h2 className="login-heading">{mode === "signup" ? "Create Account" : "Sign In"}</h2>
+            {mode === "signup" && (
+              <div className="form-row">
+                <label className="form-label" htmlFor="fullName">Full Name</label>
+                <input id="fullName" className="form-input" placeholder="Your full name" {...authForm.register("fullName")} />
+                <FieldError error={authForm.formState.errors.fullName} />
+              </div>
+            )}
+            <div className="form-row">
+              <label className="form-label" htmlFor="email">Email</label>
+              <input id="email" className="form-input" type="email" placeholder="you@college.edu" autoComplete={mode === "login" ? "email" : "new-email"} {...authForm.register("email")} />
+              <FieldError error={authForm.formState.errors.email} />
+            </div>
+            <div className="form-row">
+              <label className="form-label" htmlFor="password">Password</label>
+              <input id="password" className="form-input" type="password" placeholder="••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} {...authForm.register("password")} />
+              <FieldError error={authForm.formState.errors.password} />
+            </div>
+            {mode === "signup" && (
+              <div className="form-row">
+                <label className="form-label" htmlFor="confirm">Confirm Password</label>
+                <input id="confirm" className="form-input" type="password" placeholder="••••••" autoComplete="new-password" {...authForm.register("confirm")} />
+                <FieldError error={authForm.formState.errors.confirm} />
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 8 }} disabled={authForm.formState.isSubmitting}>
+              {authForm.formState.isSubmitting ? "Please wait…" : mode === "signup" ? "Create Account" : "Sign In"}
+            </button>
+            <div style={{ textAlign: "center", marginTop: 14, fontSize: ".82rem" }}>
+              {mode === "login" ? (
+                <>No account? <button type="button" className="link-btn" onClick={() => switchMode("signup")}>Sign up</button></>
+              ) : (
+                <>Already have an account? <button type="button" className="link-btn" onClick={() => switchMode("login")}>Sign in</button></>
+              )}
+            </div>
           </form>
         )}
       </div>
