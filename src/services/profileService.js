@@ -6,18 +6,16 @@ export async function fetchStudentProfile(userId) {
     .select("*")
     .eq("id", userId)
     .single();
-
   if (error) throw error;
-
   return data;
 }
 
 export function isProfileComplete(profile) {
   return Boolean(
     profile?.roll_no &&
-      profile?.branch &&
-      profile?.semester &&
-      profile?.section
+    profile?.branch &&
+    profile?.semester &&
+    profile?.section
   );
 }
 
@@ -30,7 +28,7 @@ export async function updateProfile(userId, payload) {
     .from("profiles")
     .update(payload)
     .eq("id", userId);
-  if (error) throw error;  // ← was silently returning the error object before
+  if (error) throw error;
 }
 
 export async function getProfile(userId) {
@@ -39,8 +37,6 @@ export async function getProfile(userId) {
     .select("*")
     .eq("id", userId)
     .single();
-
   if (error) throw error;
-
   return data;
 }
