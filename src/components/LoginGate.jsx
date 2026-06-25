@@ -156,18 +156,17 @@ export default function LoginGate() {
         toast.success("Welcome back!", { id: toastId });
       }
     } catch (err) {
-      console.error("SIGNUP ERROR:", err);
+      console.error("FULL ERROR:", err);
+      console.error("MESSAGE:", err?.message);
+      console.error("STACK:", err?.stack);
 
       alert(
-        err?.message ||
-        JSON.stringify(err, null, 2) ||
-        "Unknown error"
+        JSON.stringify(err,
+        Object.getOwnPropertyNames(err), 2)
       );
 
       toast.error(
-        err?.message ||
-        JSON.stringify(err) ||
-        "Unknown error",
+        err?.message || "Signup failed",
         { id: toastId }
       );
     }
