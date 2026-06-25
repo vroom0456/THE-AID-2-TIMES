@@ -154,7 +154,22 @@ export default function LoginGate() {
         });
         toast.success("Welcome back!", { id: toastId });
       }
-    } catch (err) { toast.error(friendlyError(err), { id: toastId }); }
+    } catch (err) {
+      console.error("SIGNUP ERROR:", err);
+
+      alert(
+        err?.message ||
+        JSON.stringify(err, null, 2) ||
+        "Unknown error"
+      );
+
+      toast.error(
+        err?.message ||
+        JSON.stringify(err) ||
+        "Unknown error",
+        { id: toastId }
+      );
+    }
   }, [mode, loginStore]);
 
   const onForgotSubmit = useCallback(async (data) => {
