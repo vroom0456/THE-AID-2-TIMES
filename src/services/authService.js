@@ -1,7 +1,8 @@
-
 import { supabase } from "../lib/supabase";
 
 export async function signUpUser({ email, password, fullName }) {
+  console.log("Starting signup...");
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -11,7 +12,12 @@ export async function signUpUser({ email, password, fullName }) {
       },
     },
   });
+
+  console.log("SIGNUP DATA:", data);
+  console.log("SIGNUP ERROR:", error);
+
   if (error) throw error;
+
   return { user: data.user };
 }
 
@@ -43,5 +49,3 @@ export async function sendPasswordReset(email) {
 export async function updateUserPassword(newPassword) {
   return supabase.auth.updateUser({ password: newPassword });
 }
-
-
