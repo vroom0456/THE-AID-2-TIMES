@@ -114,6 +114,7 @@ export default function LoginGate() {
   const removePfp = useCallback(() => { setPfpFile(null); setPfpPreview(null); }, []);
 
   const onAuthSubmit = useCallback(async (data) => {
+    console.log("FORM SUBMITTED", data);
     const toastId = toast.loading("Processing…");
     try {
       if (mode === "signup") {
@@ -411,3 +412,4 @@ export default function LoginGate() {
     </div>
   );
 }
+
