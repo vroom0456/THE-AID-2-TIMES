@@ -396,6 +396,23 @@ footer{border-top:1px solid var(--g2);padding:28px 40px;display:flex;align-items
 /* HERO GREETING */
 .hero-greeting{font-family:var(--fm);font-size:.9rem;letter-spacing:.08em;color:var(--gold);margin-bottom:8px;text-transform:none;}
 
+/* ── Roll number auto-detect hint ─────────────────────────────── */
+/* Add this inside your existing index.css, near .form-error */
+.roll-hint {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: rgba(39, 174, 96, 0.10);
+  border: 1px solid rgba(39, 174, 96, 0.30);
+  border-radius: 4px;
+  color: var(--white);
+  font-size: .80rem;
+  line-height: 1.5;
+}
+.roll-hint strong {
+  color: #2ecc71;
+}
+
+
 /* FORM ERROR */
 .form-error{color:var(--red);font-size:.78rem;margin-top:4px;padding:8px 12px;background:rgba(255,60,60,.08);border:1px solid rgba(255,60,60,.2);border-radius:4px;}
 
