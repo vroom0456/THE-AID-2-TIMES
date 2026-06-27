@@ -14,6 +14,7 @@ import { authSchema, profileSchema, buildSgpaArray } from "../utils/validators";
 import { friendlyError } from "../utils/errorHelpers";
 import {
   BRANCH_CODES, BRANCH_LABELS, SEMESTERS, SECTIONS, MAX_AVATAR_BYTES,
+  parseRollNumber,
 } from "../utils/constants";
 
 function FieldError({ error }) {
@@ -79,6 +80,9 @@ export default function LoginGate() {
   const [pfpPreview, setPfpPreview] = useState(null);
   const [cropSrc, setCropSrc]       = useState(null);
 
+  // Roll number auto-detect hint shown below the roll field
+  const [rollHint, setRollHint] = useState(null); // { branch, joinYear, estimatedSem } | null
+
   const authForm    = useForm({ resolver: zodResolver(authSchema) });
   const forgotForm  = useForm({ resolver: zodResolver(forgotSchema) });
   const resetForm   = useForm({ resolver: zodResolver(resetSchema) });
@@ -93,6 +97,30 @@ export default function LoginGate() {
     authForm.reset();
     setMode(next);
   }, [authForm]);
+
+  // ── Roll number change handler — auto-fills branch + semester ──
+  const handleRollChange = useCallback((e) => {
+    const val = e.target.value.replace(/\D/g, "").slice(0, 12);
+    profileForm.setValue("roll_no", val);
+
+    if (val.length === 12) {
+      const parsed = parseRollNumber(val);
+      if (parsed && parsed.branch) {
+        // Auto-set branch and estimated semester
+        profileForm.setValue("branch", parsed.branch, { shouldValidate: true });
+        profileForm.setValue("semester", parsed.estimatedSem, { shouldValidate: true });
+        setRollHint({
+          branch: BRANCH_LABELS[parsed.branch],
+          joinYear: parsed.joinYear,
+          estimatedSem: parsed.estimatedSem,
+        });
+      } else {
+        setRollHint(null);
+      }
+    } else {
+      setRollHint(null);
+    }
+  }, [profileForm]);
 
   const handlePfp = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -124,7 +152,6 @@ export default function LoginGate() {
           fullName: data.fullName.trim(),
         });
 
-        // Immediately create the profile row after signup
         await createProfile({
           id: user.id,
           full_name: data.fullName.trim(),
@@ -253,11 +280,31 @@ export default function LoginGate() {
           <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} noValidate>
             <h2 className="login-heading">Complete Your Profile</h2>
             <AvatarPicker preview={pfpPreview} onPick={handlePfp} onRemove={removePfp} />
+
+            {/* ── Roll Number — drives auto-detection ── */}
             <div className="form-row">
               <label className="form-label" htmlFor="roll_no">Roll Number</label>
-              <input id="roll_no" className="form-input" placeholder="e.g. 220010234" inputMode="numeric" {...profileForm.register("roll_no")} />
+              <input
+                id="roll_no"
+                className="form-input"
+                placeholder="e.g. 160122771001"
+                inputMode="numeric"
+                maxLength={12}
+                {...profileForm.register("roll_no")}
+                onChange={handleRollChange}
+              />
               <FieldError error={profileForm.formState.errors.roll_no} />
+              {/* Auto-detect hint banner */}
+              {rollHint && (
+                <div className="roll-hint" role="status" aria-live="polite">
+                  ✅ Detected: <strong>{rollHint.branch}</strong> · Joined {rollHint.joinYear} · Sem {rollHint.estimatedSem} estimated
+                  <span style={{ display: "block", fontSize: ".7rem", marginTop: 2, opacity: 0.7 }}>
+                    You can still change branch &amp; semester below.
+                  </span>
+                </div>
+              )}
             </div>
+
             <div className="form-row">
               <label className="form-label" htmlFor="section">Section</label>
               <select id="section" className="form-select" {...profileForm.register("section")}>
@@ -265,18 +312,24 @@ export default function LoginGate() {
               </select>
               <FieldError error={profileForm.formState.errors.section} />
             </div>
+
+            {/* Branch — pre-filled but still editable */}
             <div className="form-row">
               <label className="form-label" htmlFor="branch">Branch</label>
               <select id="branch" className="form-select" {...profileForm.register("branch")}>
                 {BRANCH_CODES.map((b) => <option key={b} value={b}>{BRANCH_LABELS[b]}</option>)}
               </select>
+              <FieldError error={profileForm.formState.errors.branch} />
             </div>
+
+            {/* Semester — pre-filled but still editable */}
             <div className="form-row">
               <label className="form-label" htmlFor="semester">Current Semester</label>
               <select id="semester" className="form-select" {...profileForm.register("semester", { valueAsNumber: true })}>
                 {SEMESTERS.map((s) => <option key={s} value={s}>Sem {s}</option>)}
               </select>
             </div>
+
             {Number(currentSem) > 1 && (
               <div className="form-row">
                 <label className="form-label">
@@ -411,4 +464,3 @@ export default function LoginGate() {
     </div>
   );
 }
-
