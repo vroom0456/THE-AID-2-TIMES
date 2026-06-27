@@ -3,7 +3,11 @@ import { useUserStore } from "../store/useStore";
 import { updateProfile } from "../services/profileService";
 import { uploadAvatar } from "../services/storageService";
 import { friendlyError } from "../utils/errorHelpers";
-import { BRANCH_CODES, BRANCH_LABELS, SEMESTERS, SECTIONS, MAX_AVATAR_BYTES, SGPA_MIN, SGPA_MAX } from "../utils/constants";
+import {
+  BRANCH_CODES, BRANCH_LABELS, SEMESTERS, SECTIONS,
+  MAX_AVATAR_BYTES, SGPA_MIN, SGPA_MAX,
+  parseRollNumber,
+} from "../utils/constants";
 import Modal from "./ui/Modal";
 import ImageCropper from "./profile/ImageCropper";
 
@@ -39,12 +43,44 @@ export default function ProfileEdit({ onClose }) {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
 
+  // Roll-number auto-detect hint
+  const [rollHint, setRollHint] = useState(null);
+
   useEffect(() => {
     if (!user) return;
-    setName(user.name || ""); setRoll(user.roll || ""); setBranch(user.branch || "AIDS");
-    setSection(String(user.section || "1")); setSemester(user.semester ?? 5);
-    setSgpas(user.sgpas || []); setPfpPreview(user.pfp || null); setPfpFile(null);
+    setName(user.name || "");
+    setRoll(user.roll || "");
+    setBranch(user.branch || "AIDS");
+    setSection(String(user.section || "1"));
+    setSemester(user.semester ?? 5);
+    setSgpas(user.sgpas || []);
+    setPfpPreview(user.pfp || null);
+    setPfpFile(null);
+    setRollHint(null);
   }, [user]);
+
+  // ── Auto-detect branch + semester from roll number ──
+  const handleRollChange = useCallback((e) => {
+    const val = e.target.value.replace(/\D/g, "").slice(0, 12);
+    setRoll(val);
+
+    if (val.length === 12) {
+      const parsed = parseRollNumber(val);
+      if (parsed && parsed.branch) {
+        setBranch(parsed.branch);
+        setSemester(parsed.estimatedSem);
+        setRollHint({
+          branch: BRANCH_LABELS[parsed.branch],
+          joinYear: parsed.joinYear,
+          estimatedSem: parsed.estimatedSem,
+        });
+      } else {
+        setRollHint(null);
+      }
+    } else {
+      setRollHint(null);
+    }
+  }, []);
 
   const handlePfp = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -92,7 +128,11 @@ export default function ProfileEdit({ onClose }) {
         const raw = sgpas[i];
         return raw === "" || raw == null ? null : clampSgpa(raw);
       });
-      await updateProfile(user.id, { full_name: nameTrimmed, roll_no: rollTrimmed, branch, semester: semInt, section: sectionTrimmed, profile_picture_url: pfpUrl, sgpas: sgpaArr });
+      await updateProfile(user.id, {
+        full_name: nameTrimmed, roll_no: rollTrimmed, branch,
+        semester: semInt, section: sectionTrimmed,
+        profile_picture_url: pfpUrl, sgpas: sgpaArr,
+      });
       updateStore({ name: nameTrimmed, roll: rollTrimmed, branch, semester: semInt, sem: semInt, section: sectionTrimmed, pfp: pfpUrl, sgpas: sgpaArr });
       onClose();
     } catch (err) { updateStore(prevUser); setError(friendlyError(err)); }
@@ -116,46 +156,84 @@ export default function ProfileEdit({ onClose }) {
           <p style={{ fontSize: ".7rem", color: "var(--g4)", marginTop: 4 }}>Optional · Max 5 MB</p>
         </div>
       </div>
+
       <FieldRow label="Full Name">
-        <input className="form-input" value={name} maxLength={80} onChange={(e) => setName(e.target.value.slice(0, 80))} />
+        <input className="form-input" value={name} maxLength={80}
+          onChange={(e) => setName(e.target.value.slice(0, 80))} />
       </FieldRow>
+
+      {/* Roll Number — auto-detects branch & semester */}
       <FieldRow label="Roll Number">
-        <input className="form-input" value={roll} maxLength={12} inputMode="numeric" onChange={(e) => setRoll(e.target.value.replace(/\D/g, "").slice(0, 12))} />
+        <input
+          className="form-input"
+          value={roll}
+          maxLength={12}
+          inputMode="numeric"
+          placeholder="e.g. 160122771001"
+          onChange={handleRollChange}
+        />
+        {rollHint && (
+          <div className="roll-hint" role="status" aria-live="polite" style={{ marginTop: 6 }}>
+            ✅ Detected: <strong>{rollHint.branch}</strong> · Joined {rollHint.joinYear} · Sem {rollHint.estimatedSem} estimated
+            <span style={{ display: "block", fontSize: ".7rem", marginTop: 2, opacity: 0.7 }}>
+              You can still change branch &amp; semester below.
+            </span>
+          </div>
+        )}
       </FieldRow>
+
       <FieldRow label="Section">
         <select className="form-select" value={section} onChange={(e) => setSection(e.target.value)}>
           {SECTIONS.map((s) => <option key={s} value={String(s)}>Section {s}</option>)}
         </select>
       </FieldRow>
+
+      {/* Branch — pre-filled but still editable */}
       <FieldRow label="Branch">
         <select className="form-select" value={branch} onChange={(e) => setBranch(e.target.value)}>
           {BRANCH_CODES.map((b) => <option key={b} value={b}>{BRANCH_LABELS[b]}</option>)}
         </select>
       </FieldRow>
+
+      {/* Semester — pre-filled but still editable */}
       <FieldRow label="Current Semester">
         <select className="form-select" value={semester} onChange={(e) => setSemester(Number(e.target.value))}>
           {SEMESTERS.map((s) => <option key={s} value={s}>Sem {s}</option>)}
         </select>
       </FieldRow>
+
       {semInt > 1 && (
         <FieldRow label="Semester-wise SGPAs">
           <div className="login-cgpa-grid">
             {Array.from({ length: semInt - 1 }).map((_, i) => (
               <div className="login-cgpa-item" key={i}>
                 <label htmlFor={`sgpa_edit_${i}`}>Sem {i + 1}</label>
-                <input id={`sgpa_edit_${i}`} type="number" step="0.01" min={SGPA_MIN} max={SGPA_MAX} placeholder="—" value={sgpas[i] ?? ""} onChange={(e) => handleSgpaChange(i, e.target.value)} />
+                <input
+                  id={`sgpa_edit_${i}`}
+                  type="number"
+                  step="0.01"
+                  min={SGPA_MIN}
+                  max={SGPA_MAX}
+                  placeholder="—"
+                  value={sgpas[i] ?? ""}
+                  onChange={(e) => handleSgpaChange(i, e.target.value)}
+                />
               </div>
             ))}
           </div>
         </FieldRow>
       )}
+
       {error && <div className="form-error" role="alert" style={{ marginTop: 8 }}>{error}</div>}
-      <button className="btn btn-primary" style={{ width: "100%", marginTop: 12 }} onClick={handleSave} disabled={loading} aria-busy={loading}>
+      <button
+        className="btn btn-primary"
+        style={{ width: "100%", marginTop: 12 }}
+        onClick={handleSave}
+        disabled={loading}
+        aria-busy={loading}
+      >
         {loading ? "Saving…" : "Save Profile"}
       </button>
     </Modal>
   );
 }
-
-
-
