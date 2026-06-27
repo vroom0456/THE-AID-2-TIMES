@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>THE AID 2 TIMES</title>
+  </head>
+  <body>
+    
+    <script>
+      const oldError = console.error;
+      console.error = function(...args) {
+        document.body.innerHTML = '<div style="padding: 20px; background: #222; color: #ff5555; font-family: monospace; font-size: 14px; position: fixed; inset: 0; z-index: 99999; overflow: auto;">' + args.join('<br/>') + '</div>';
+        oldError.apply(console, args);
+      };
+      window.onerror = function(msg, url, line) {
+        document.body.innerHTML = '<div style="padding: 20px; background: #222; color: #ff5555; font-family: monospace; font-size: 14px; position: fixed; inset: 0; z-index: 99999; overflow: auto;">' + msg + ' at ' + url + ':' + line + '</div>';
+      };
+    </script>
+
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

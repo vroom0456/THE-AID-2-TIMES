@@ -1,0 +1,21 @@
+{
+  "name": "the-aid-2-times-backend",
+  "version": "1.0.0",
+  "description": "Express.js API backend for THE AID 2 TIMES",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "build": "npm install"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "@supabase/supabase-js": "^2.50.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
